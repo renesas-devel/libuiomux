@@ -47,6 +47,7 @@ uio_close (struct uio * uio);
 int
 uio_sleep (struct uio * uio);
 
+#ifdef HAVE_SHM_OPEN
 void *
 uio_malloc (struct uio * uio, pid_t * owners, size_t size, int align);
 
@@ -55,5 +56,15 @@ uio_free (struct uio * uio, pid_t * owners, void * address, size_t size);
 
 void
 uio_meminfo (struct uio * uio, pid_t * owners);
+#else
+void *
+uio_malloc (struct uio * uio, size_t size, int align);
+
+void
+uio_free (struct uio * uio, void * address, size_t size);
+
+void
+uio_meminfo (struct uio * uio);
+#endif /* HAVE_SHM_OPEN */
 
 #endif /* __UIOMUX_UIO_H__ */

@@ -21,6 +21,7 @@
 #include "config.h"
 #endif
 
+#ifdef HAVE_SHM_OPEN
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -299,3 +300,4 @@ get_shared_state (void)
 
   return state;
 }
+#endif /* HAVE_SHM_OPEN */

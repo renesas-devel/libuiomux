@@ -27,6 +27,10 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifndef HAVE_SHM_OPEN
+#include <sys/file.h>
+#include <unistd.h>
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
@@ -38,6 +42,7 @@
 
 /* #define SAVE_RESTORE_REGISTERS */
 
+#ifdef HAVE_SHM_OPEN
 static int uiomux_unlock_all(struct uiomux *uiomux)
 {
 	pthread_mutex_t *mutex;
@@ -160,6 +165,7 @@ static int uiomux_free_mem(struct uiomux *uiomux)
 
 	return 0;
 }
+#endif /* HAVE_SHM_OPEN */
 
 #ifdef HAVE_ON_EXIT
 /**
@@ -200,6 +206,7 @@ static void uiomux_on_exit(int exit_status, void *arg)
 	fprintf(stderr, "%s: IN\n", __func__);
 #endif
 
+#ifdef HAVE_SHM_OPEN
 	/* Only attempt the unlock and free if the shared_state is still correctly
 	 * mapped at its proper address */
 	if (uiomux->shared_state
@@ -207,6 +214,9 @@ static void uiomux_on_exit(int exit_status, void *arg)
 	    uiomux->shared_state) {
 		uiomux_close(uiomux);
 	}
+#else
+	uiomux_close(uiomux);
+#endif
 
 	/* Finally, free uiomux */
 	free(uiomux);
@@ -216,20 +226,26 @@ static void uiomux_on_exit(int exit_status, void *arg)
 struct uiomux *uiomux_open(void)
 {
 	struct uiomux *uiomux;
+#ifdef HAVE_SHM_OPEN
 	struct uiomux_state *state;
+#endif
 	struct uiomux_block *block;
 	const char *name = NULL;
 	int i;
 
+#ifdef HAVE_SHM_OPEN
 	/* Get the shared state, creating and initializing it if necessary */
 	state = get_shared_state();
 
 	if (state == NULL)
 		return NULL;
+#endif /* HAVE_SHM_OPEN */
 
 	uiomux = (struct uiomux *) calloc(1, sizeof(*uiomux));
 
+#ifdef HAVE_SHM_OPEN
 	uiomux->shared_state = state;
+#endif
 
 	/* Allocate space for register store */
 	for (i = 0; i < UIOMUX_BLOCK_MAX; i++) {
@@ -255,8 +271,10 @@ struct uiomux *uiomux_open(void)
 	on_exit(uiomux_on_exit, uiomux);
 #endif
 
+#ifdef HAVE_SHM_OPEN
 	/* Update memory allocs */
 	uiomux_update_mem(uiomux);
+#endif
 
 	return uiomux;
 }
@@ -266,8 +284,12 @@ static void uiomux_delete(struct uiomux *uiomux)
 	struct uiomux_block *block;
 	int i;
 
+#ifdef HAVE_ON_EXIT
+#ifdef HAVE_SHM_OPEN
 	/* Mark this as NULL to invalidate uiomux for uiomux_on_exit */
 	uiomux->shared_state = NULL;
+#endif
+#endif
 
 	for (i = 0; i < UIOMUX_BLOCK_MAX; i++) {
 		block = &uiomux->blocks[i];
@@ -292,6 +314,7 @@ int uiomux_close(struct uiomux *uiomux)
 	fprintf(stderr, "%s: IN\n", __func__);
 #endif
 
+#ifdef HAVE_SHM_OPEN
 	uiomux_free_mem(uiomux);
 	uiomux_unlock_all(uiomux);
 
@@ -301,6 +324,7 @@ int uiomux_close(struct uiomux *uiomux)
 	 * shared state will be unmapped on exit anyway.
 	 */
 	//unmap_shared_state(uiomux->shared_state);
+#endif
 
 	uiomux_delete(uiomux);
 
@@ -309,6 +333,7 @@ int uiomux_close(struct uiomux *uiomux)
 
 int uiomux_system_reset(struct uiomux *uiomux)
 {
+#ifdef HAVE_SHM_OPEN
 	if (uiomux == NULL)
 		return -1;
 
@@ -325,11 +350,17 @@ int uiomux_system_reset(struct uiomux *uiomux)
 	uiomux_reset_mem(uiomux);
 
 	return 0;
+#else
+	/* Locks by other tasks cannot be invalidated. */
+	return -1;
+#endif /* HAVE_SHM_OPEN */
 }
 
 int uiomux_system_destroy(struct uiomux *uiomux)
 {
+#ifdef HAVE_SHM_OPEN
 	destroy_shared_state(uiomux->shared_state);
+#endif
 
 	uiomux_delete(uiomux);
 
@@ -338,13 +369,16 @@ int uiomux_system_destroy(struct uiomux *uiomux)
 
 int uiomux_lock(struct uiomux *uiomux, uiomux_resource_t blockmask)
 {
+#ifdef HAVE_SHM_OPEN
 	pthread_mutex_t *mutex;
+#endif
 	struct uiomux_block *block;
 	unsigned long *reg_base;
-	int i, k, ret;
+	int i, k, ret = 0;
 
 	for (i = 0; i < UIOMUX_BLOCK_MAX; i++) {
 		if (blockmask & (1 << i)) {
+#ifdef HAVE_SHM_OPEN
 			/* lock mutex */
 #ifdef DEBUG
 			fprintf(stderr, "%s: PID %d locking block %d\n",
@@ -362,7 +396,21 @@ int uiomux_lock(struct uiomux *uiomux, uiomux_resource_t blockmask)
 					"%s: PID %d LOCKED block %d\n",
 					__func__, getpid(), i);
 #endif
+#else /* HAVE_SHM_OPEN */
+			struct uio *uio;
 
+			uio = uiomux->blocks[i].uio;
+			if (!uio) {
+				fprintf(stderr, "No uio exists.\n");
+				goto undo_locks;
+			}
+			ret = flock(uio->dev.fd, LOCK_EX);
+			if (ret < 0) {
+				perror("flock failed");
+				goto undo_locks;
+			}
+			uiomux->locked_resources |= 1U << i;
+#endif /* HAVE_SHM_OPEN */
 
 #ifdef SAVE_RESTORE_REGISTERS
 			/* restore registers */
@@ -387,11 +435,25 @@ int uiomux_lock(struct uiomux *uiomux, uiomux_resource_t blockmask)
 
 
 	return 0;
+#ifndef HAVE_SHM_OPEN
+undo_locks:
+	{
+		extern int uiomux_unlock(struct uiomux *,
+					 uiomux_resource_t);
+		int save_errno = errno;
+		uiomux_unlock(uiomux, uiomux->locked_resources);
+		errno = save_errno;
+	}
+
+	return ret;
+#endif /* HAVE_SHM_OPEN */
 }
 
 int uiomux_unlock(struct uiomux *uiomux, uiomux_resource_t blockmask)
 {
+#ifdef HAVE_SHM_OPEN
 	pthread_mutex_t *mutex;
+#endif
 	struct uiomux_block *block;
 	unsigned long *reg_base;
 	int i, k, ret;
@@ -409,6 +471,7 @@ int uiomux_unlock(struct uiomux *uiomux, uiomux_resource_t blockmask)
 			}
 #endif
 
+#ifdef HAVE_SHM_OPEN
 			/* record last holder */
 			uiomux->shared_state->mutex[i].prev_holder =
 			    pthread_self();
@@ -430,6 +493,16 @@ int uiomux_unlock(struct uiomux *uiomux, uiomux_resource_t blockmask)
 					"%s: PID %d UNLOCKED block %d\n",
 					__func__, getpid(), i);
 #endif
+#else /* HAVE_SHM_OPEN */
+			if (uiomux->blocks[i].uio) {
+				struct uio *uio;
+
+				uio = uiomux->blocks[i].uio;
+				ret = flock(uio->dev.fd, LOCK_UN);
+				if (ret < 0)
+					perror("flock failed");
+			}
+#endif /* HAVE_SHM_OPEN */
 		}
 	}
 
@@ -487,7 +560,9 @@ long uiomux_sleep(struct uiomux *uiomux, uiomux_resource_t blockmask)
 void *uiomux_malloc(struct uiomux *uiomux, uiomux_resource_t blockmask,
 		    size_t size, int align)
 {
+#ifdef HAVE_SHM_OPEN
 	pthread_mutex_t *mutex;
+#endif
 	struct uiomux_block *block;
 	void *ret = NULL;
 	int i;
@@ -503,6 +578,7 @@ void *uiomux_malloc(struct uiomux *uiomux, uiomux_resource_t blockmask,
 		fprintf(stderr, "%s: Allocating %d bytes for block %d\n",
 			__func__, size, i);
 #endif
+#ifdef HAVE_SHM_OPEN
 		mutex = &uiomux->shared_state->mutex[i].mutex;
 		pthread_mutex_lock(mutex);
 
@@ -511,6 +587,9 @@ void *uiomux_malloc(struct uiomux *uiomux, uiomux_resource_t blockmask,
 				 size, align);
 
 		pthread_mutex_unlock(mutex);
+#else
+		ret = uio_malloc(block->uio, size, align);
+#endif /* HAVE_SHM_OPEN */
 	}
 
 	return ret;
@@ -520,7 +599,9 @@ void
 uiomux_free(struct uiomux *uiomux, uiomux_resource_t blockmask,
 	    void *address, size_t size)
 {
+#ifdef HAVE_SHM_OPEN
 	pthread_mutex_t *mutex;
+#endif
 	struct uiomux_block *block;
 	int i;
 
@@ -535,6 +616,7 @@ uiomux_free(struct uiomux *uiomux, uiomux_resource_t blockmask,
 		fprintf(stderr, "%s: Freeing memory for block %d\n",
 			__func__, i);
 #endif
+#ifdef HAVE_SHM_OPEN
 		mutex = &uiomux->shared_state->mutex[i].mutex;
 		pthread_mutex_lock(mutex);
 
@@ -542,6 +624,9 @@ uiomux_free(struct uiomux *uiomux, uiomux_resource_t blockmask,
 			 address, size);
 
 		pthread_mutex_unlock(mutex);
+#else
+		uio_free(block->uio, address, size);
+#endif /* HAVE_SHM_OPEN */
 	}
 }
 
@@ -732,8 +817,10 @@ static int uiomux_showversion(struct uiomux *uiomux)
 	       UIOMUX_STATE_VERSION);
 	fflush(stdout);
 
+#ifdef HAVE_SHM_OPEN
 	printf("Current runtime state version %d\n",
 	       uiomux->shared_state->version);
+#endif
 
 	return 0;
 }
@@ -785,8 +872,12 @@ int uiomux_meminfo(struct uiomux *uiomux)
 		if (block->uio != NULL) {
 			printf("%s: %s", block->uio->dev.path,
 			       block->uio->dev.name);
+#ifdef HAVE_SHM_OPEN
 			uio_meminfo(block->uio,
 				    uiomux->shared_state->owners[i]);
+#else
+			uio_meminfo(block->uio);
+#endif
 		}
 	}
 

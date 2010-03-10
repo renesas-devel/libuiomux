@@ -17,6 +17,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA  02110-1301 USA
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <errno.h>
 #include <fcntl.h>
 #include <math.h>
@@ -196,6 +200,7 @@ int uio_sleep(struct uio *uio)
 }
 
 /* Returns index */
+#ifdef HAVE_SHM_OPEN
 static int uio_mem_find(pid_t * owners, int max, int count)
 {
 	int i, c, base = -1;
@@ -248,7 +253,63 @@ static int uio_mem_free(pid_t * owners, int offset, int count)
 	return uio_mem_alloc_to(owners, offset, count, 0);
 }
 
+#else /* HAVE_SHM_OPEN */
+
+static int uio_mem_find(int fd, int max, int count)
+{
+	struct flock lck;
+	const long pagesize = sysconf(_SC_PAGESIZE);
+	int ret;
+
+	lck.l_type = F_WRLCK;
+	lck.l_whence = SEEK_SET;
+	lck.l_start = 0;
+	lck.l_len = count * pagesize;
+	while (lck.l_start < (max * pagesize)) {
+		ret = fcntl(fd, F_SETLK, &lck);
+		if (ret == 0)
+			break;
+		lck.l_start += pagesize;
+	}
+
+	if (lck.l_start >= (max * pagesize))
+		return -1;
+
+#ifdef DEBUG
+	fprintf(stderr, "%s: Found %d available pages at index %d\n",
+		__func__, c, base);
+#endif
+	return lck.l_start / pagesize;
+}
+
+static int uio_mem_alloc(int fd, int offset, int count)
+{
+	/* The region found by uio_mem_find() has been locked. */
+	return 0;
+}
+
+static int uio_mem_free(int fd, int offset, int count)
+{
+	struct flock lck;
+	const long pagesize = sysconf(_SC_PAGESIZE);
+	int ret;
+
+	lck.l_type = F_UNLCK;
+	lck.l_whence = SEEK_SET;
+	lck.l_start = offset;
+	lck.l_len = count * pagesize;
+
+	ret = fcntl(fd, F_SETLK, &lck);
+
+	return ret;
+}
+#endif /* HAVE_SHM_OPEN */
+
+#ifdef HAVE_SHM_OPEN
 void *uio_malloc(struct uio *uio, pid_t * owners, size_t size, int align)
+#else
+void *uio_malloc(struct uio *uio, size_t size, int align)
+#endif
 {
 	unsigned char * mem_base;
 	int pagesize, pages_req, pages_max;
@@ -266,17 +327,28 @@ void *uio_malloc(struct uio *uio, pid_t * owners, size_t size, int align)
 	pages_max = (uio->mem.size + pagesize - 1) / pagesize;
 	pages_req = (size + pagesize - 1) / pagesize;
 
+#ifdef HAVE_SHM_OPEN
 	if ((base = uio_mem_find(owners, pages_max, pages_req)) == -1)
 		return NULL;
 
 	uio_mem_alloc(owners, base, pages_req);
+#else
+	if ((base = uio_mem_find(uio->dev.fd, pages_max, pages_req)) == -1)
+		return NULL;
+	uio_mem_alloc(uio->dev.fd, base, pages_req);
+#endif
+
 	mem_base = (void *)
 		((unsigned long)uio->mem.iomem + (base * pagesize));
 
 	return mem_base;
 }
 
+#ifdef HAVE_SHM_OPEN
 void uio_free(struct uio *uio, pid_t * owners, void *address, size_t size)
+#else
+void uio_free(struct uio *uio, void *address, size_t size)
+#endif
 {
 	int pagesize, base, pages_req;
 
@@ -289,7 +361,11 @@ void uio_free(struct uio *uio, pid_t * owners, void *address, size_t size)
 	base = (int)(((unsigned long)address -
 		      (unsigned long)uio->mem.iomem) / pagesize);
 	pages_req = (size + pagesize - 1) / pagesize;
+#ifdef HAVE_SHM_OPEN
 	uio_mem_free(owners, base, pages_req);
+#else
+	uio_mem_free(uio->dev.fd, base, pages_req);
+#endif
 }
 
 static void print_usage(int pid, long base, long top)
@@ -311,6 +387,7 @@ static void print_usage(int pid, long base, long top)
 }
 
 
+#ifdef HAVE_SHM_OPEN
 void uio_meminfo(struct uio *uio, pid_t * owners)
 {
 	int i, pagesize, pages;
@@ -339,3 +416,25 @@ void uio_meminfo(struct uio *uio, pid_t * owners)
 	}
 	print_usage(pid, base, top);
 }
+#else /* HAVE_SHM_OPEN */
+void uio_meminfo(struct uio *uio)
+{
+	struct flock lck;
+	const long pagesize = sysconf(_SC_PAGESIZE);
+	const int pages_max = uio->mem.size / pagesize;
+	long base;
+	int count, ret;
+
+	for (count = 0; count < pages_max; count++) {
+		base = uio->mem.address + count * pagesize;
+		lck.l_type = F_WRLCK;
+		lck.l_whence = SEEK_SET;
+		lck.l_start = count * pagesize;
+		lck.l_len = pagesize;
+		lck.l_pid = 0;
+		ret = fcntl(uio->dev.fd, F_GETLK, &lck);
+		if (ret == 0)
+			print_usage(lck.l_pid, base, base + pagesize - 1);
+	}
+}
+#endif /* HAVE_SHM_OPEN */

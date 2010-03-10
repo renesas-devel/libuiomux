@@ -46,6 +46,7 @@ struct uiomux_block {
   long * registers;
 };
 
+#ifdef HAVE_SHM_OPEN
 struct uiomux_mutex {
   pthread_mutex_t mutex;
   pthread_t prev_holder;
@@ -70,10 +71,16 @@ struct uiomux_state {
   /* Pointers to page owners, which is stored immediately after shared state */
   pid_t * owners[UIOMUX_BLOCK_MAX];
 };
+#endif /* HAVE_SHM_OPEN */
 
 struct uiomux {
+#ifdef HAVE_SHM_OPEN
   /* Shared state */
   struct uiomux_state * shared_state;
+#else
+  /* Locked resources */
+  uiomux_resource_t locked_resources;
+#endif
 
   /* Blocks */
   struct uiomux_block blocks[UIOMUX_BLOCK_MAX]; 
@@ -83,6 +90,7 @@ struct uiomux {
  * Library-private functions
  */
 
+#ifdef HAVE_SHM_OPEN
 struct uiomux_state *
 get_shared_state (void);
 
@@ -94,6 +102,7 @@ unmap_shared_state (struct uiomux_state * state);
 
 int
 destroy_shared_state (struct uiomux_state * state);
+#endif /* HAVE_SHM_OPEN */
 
 int
 uiomux_close (struct uiomux * uiomux);
