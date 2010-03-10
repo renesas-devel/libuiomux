@@ -248,8 +248,10 @@ struct uiomux *uiomux_open(void)
 		}
 	}
 
+#ifdef HAVE_ON_EXIT
 	/* Register on_exit() cleanup function */
 	on_exit(uiomux_on_exit, uiomux);
+#endif /* HAVE_ON_EXIT */
 
 	/* Update memory allocs */
 	uiomux_update_mem(uiomux);
@@ -272,7 +274,11 @@ static void uiomux_delete(struct uiomux *uiomux)
 			free(block->registers);
 	}
 
+#ifdef HAVE_ON_EXIT
 	/* uiomux will be free'd on exit */
+#else
+	free(uiomux);
+#endif
 }
 
 int uiomux_close(struct uiomux *uiomux)
