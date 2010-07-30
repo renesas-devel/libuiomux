@@ -192,9 +192,6 @@ int uio_sleep(struct uio *uio)
 			return ret;
 	}
 
-	//m4iph_vpu4_int_handler();
-
-	//avcbd_idr_adjust( global_context );
 	return 0;
 }
 
