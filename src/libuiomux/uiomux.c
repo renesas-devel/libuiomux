@@ -253,7 +253,7 @@ struct uiomux *uiomux_open(void)
 #ifdef HAVE_ON_EXIT
 	/* Register on_exit() cleanup function */
 	on_exit(uiomux_on_exit, uiomux);
-#endif /* HAVE_ON_EXIT */
+#endif
 
 	/* Update memory allocs */
 	uiomux_update_mem(uiomux);
