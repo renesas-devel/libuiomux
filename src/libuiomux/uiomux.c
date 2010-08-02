@@ -588,7 +588,7 @@ void *uiomux_malloc(struct uiomux *uiomux, uiomux_resource_t blockmask,
 
 		pthread_mutex_unlock(mutex);
 #else
-		ret = uio_malloc(block->uio, size, align);
+		ret = uio_malloc(block->uio, i, size, align);
 #endif /* HAVE_SHM_OPEN */
 	}
 
@@ -625,7 +625,7 @@ uiomux_free(struct uiomux *uiomux, uiomux_resource_t blockmask,
 
 		pthread_mutex_unlock(mutex);
 #else
-		uio_free(block->uio, address, size);
+		uio_free(block->uio, i, address, size);
 #endif /* HAVE_SHM_OPEN */
 	}
 }

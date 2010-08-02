@@ -20,6 +20,9 @@
 #ifndef __UIOMUX_UIO_H__
 #define __UIOMUX_UIO_H__
 
+#define UIO_DEVICE_MAX		16
+#define UIO_BUFFER_MAX		(8 * 1024 * 1024) /* 8MB, depends on
+						     get_free_pages() */
 struct uio_device {
   char *name;
   char *path;
@@ -58,10 +61,10 @@ void
 uio_meminfo (struct uio * uio, pid_t * owners);
 #else
 void *
-uio_malloc (struct uio * uio, size_t size, int align);
+uio_malloc (struct uio * uio, int resid, size_t size, int align);
 
 void
-uio_free (struct uio * uio, void * address, size_t size);
+uio_free (struct uio * uio, int resid, void * address, size_t size);
 
 void
 uio_meminfo (struct uio * uio);

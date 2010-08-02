@@ -255,7 +255,7 @@ static int uio_mem_free(pid_t * owners, int offset, int count)
 
 #else /* HAVE_SHM_OPEN */
 
-static int uio_mem_find(int fd, int max, int count)
+static int uio_mem_lock(int fd, int offset, int count)
 {
 	struct flock lck;
 	const long pagesize = sysconf(_SC_PAGESIZE);
@@ -263,43 +263,91 @@ static int uio_mem_find(int fd, int max, int count)
 
 	lck.l_type = F_WRLCK;
 	lck.l_whence = SEEK_SET;
-	lck.l_start = 0;
+	lck.l_start = offset * pagesize;
 	lck.l_len = count * pagesize;
-	while (lck.l_start < (max * pagesize)) {
-		ret = fcntl(fd, F_SETLK, &lck);
-		if (ret == 0)
-			break;
-		lck.l_start += pagesize;
-	}
 
-	if (lck.l_start >= (max * pagesize))
-		return -1;
+	ret = fcntl(fd, F_SETLK, &lck);
 
-#ifdef DEBUG
-	fprintf(stderr, "%s: Found %d available pages at index %d\n",
-		__func__, c, base);
-#endif
-	return lck.l_start / pagesize;
+	return ret;
 }
 
-static int uio_mem_alloc(int fd, int offset, int count)
+static int uio_mem_unlock(int fd, int offset, int count)
 {
-	/* The region found by uio_mem_find() has been locked. */
+	const long pagesize = sysconf(_SC_PAGESIZE);
+	struct flock lck;
+	int ret;
+
+	lck.l_type = F_UNLCK;
+	lck.l_whence = SEEK_SET;
+	lck.l_start = offset * pagesize;
+	lck.l_len = count * pagesize;
+
+	ret = fcntl(fd, F_SETLK, &lck);
+
+	return ret;
+}
+
+static pthread_mutex_t mc_lock = PTHREAD_MUTEX_INITIALIZER;
+#define UIO_BUFPAGE_MAX		(UIO_BUFFER_MAX / PAGESIZE)
+static unsigned char mc_map[UIO_DEVICE_MAX][UIO_BUFPAGE_MAX];
+
+static int uio_mem_find(int fd, int res, int max, int count)
+{
+	int s, l, c;
+
+	pthread_mutex_lock(&mc_lock);
+	for (s = 0; s < max; s++) {
+		for (l = s, c = count; (l < max) && (c > 0); l++, c--) {
+			if (mc_map[res][l])
+				break;
+		}
+
+		if (c <= 0) {
+			int ret;
+
+			ret = uio_mem_lock(fd, s, count);
+			if (!ret)
+				goto found;
+		}
+		s = l;	/* skip */
+	}
+
+	pthread_mutex_unlock(&mc_lock);
+	return -1;
+
+found:
+#ifdef DEBUG
+	fprintf(stderr, "%s: Found %d available pages at index %d\n",
+		__func__, count, s);
+#endif
+	pthread_mutex_unlock(&mc_lock);
+	return s;
+}
+
+static int uio_mem_alloc(int fd, int res, int offset, int count)
+{
+	pthread_mutex_lock(&mc_lock);
+        while (count-- > 0)
+		mc_map[res][offset++] = 1U;
+	pthread_mutex_unlock(&mc_lock);
+
 	return 0;
 }
 
-static int uio_mem_free(int fd, int offset, int count)
+static int uio_mem_free(int fd, int res, int offset, int count)
 {
 	struct flock lck;
 	const long pagesize = sysconf(_SC_PAGESIZE);
 	int ret;
 
-	lck.l_type = F_UNLCK;
-	lck.l_whence = SEEK_SET;
-	lck.l_start = offset;
-	lck.l_len = count * pagesize;
+	ret = uio_mem_unlock(fd, offset, count);
 
-	ret = fcntl(fd, F_SETLK, &lck);
+	if (ret == 0) {
+		pthread_mutex_lock(&mc_lock);
+		while (count-- > 0)
+			mc_map[res][offset++] = 0U;
+		pthread_mutex_unlock(&mc_lock);
+	}
 
 	return ret;
 }
@@ -308,7 +356,7 @@ static int uio_mem_free(int fd, int offset, int count)
 #ifdef HAVE_SHM_OPEN
 void *uio_malloc(struct uio *uio, pid_t * owners, size_t size, int align)
 #else
-void *uio_malloc(struct uio *uio, size_t size, int align)
+void *uio_malloc(struct uio *uio, int resid, size_t size, int align)
 #endif
 {
 	unsigned char * mem_base;
@@ -333,9 +381,10 @@ void *uio_malloc(struct uio *uio, size_t size, int align)
 
 	uio_mem_alloc(owners, base, pages_req);
 #else
-	if ((base = uio_mem_find(uio->dev.fd, pages_max, pages_req)) == -1)
+	if ((base = uio_mem_find(uio->dev.fd, resid,
+				 pages_max, pages_req)) == -1)
 		return NULL;
-	uio_mem_alloc(uio->dev.fd, base, pages_req);
+	uio_mem_alloc(uio->dev.fd, resid, base, pages_req);
 #endif
 
 	mem_base = (void *)
@@ -347,7 +396,7 @@ void *uio_malloc(struct uio *uio, size_t size, int align)
 #ifdef HAVE_SHM_OPEN
 void uio_free(struct uio *uio, pid_t * owners, void *address, size_t size)
 #else
-void uio_free(struct uio *uio, void *address, size_t size)
+void uio_free(struct uio *uio, int resid, void *address, size_t size)
 #endif
 {
 	int pagesize, base, pages_req;
@@ -364,7 +413,7 @@ void uio_free(struct uio *uio, void *address, size_t size)
 #ifdef HAVE_SHM_OPEN
 	uio_mem_free(owners, base, pages_req);
 #else
-	uio_mem_free(uio->dev.fd, base, pages_req);
+	uio_mem_free(uio->dev.fd, resid, base, pages_req);
 #endif
 }
 

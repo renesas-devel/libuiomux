@@ -32,9 +32,8 @@
  * Library-private defines
  */
 
-#define UIOMUX_BLOCK_MAX 16
-
-#define UIOMUX_STATE_VERSION 3
+#define UIOMUX_BLOCK_MAX 	UIO_DEVICE_MAX
+#define UIOMUX_STATE_VERSION 	3
 
 /***********************************************************
  * Library-private Types
