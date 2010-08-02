@@ -161,6 +161,7 @@ static int uiomux_free_mem(struct uiomux *uiomux)
 	return 0;
 }
 
+#ifdef HAVE_ON_EXIT
 /**
  * uiomux_on_exit()
  *
@@ -210,6 +211,7 @@ static void uiomux_on_exit(int exit_status, void *arg)
 	/* Finally, free uiomux */
 	free(uiomux);
 }
+#endif /* HAVE_ON_EXIT */
 
 struct uiomux *uiomux_open(void)
 {
