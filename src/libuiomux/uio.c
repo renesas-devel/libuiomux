@@ -115,6 +115,16 @@ static int setup_uio_map(struct uio_device *udp, int nr,
 	return 0;
 }
 
+#ifndef HAVE_SHM_OPEN
+/*
+   mc_map is a map to mark the memory regions which are occupied by
+   each process.  This is required because the fcntl()'s advisory
+   lock is only valid between processes, not within a process.
+ */
+static pthread_mutex_t mc_lock = PTHREAD_MUTEX_INITIALIZER;
+static unsigned char (*mc_map)[UIO_DEVICE_MAX];
+#endif
+
 int uio_close(struct uio *uio)
 {
 	if (uio == NULL)
@@ -168,6 +178,24 @@ struct uio *uio_open(const char *name)
 		uio_close(uio);
 		return NULL;
 	}
+#ifndef HAVE_SHM_OPEN
+	/* initialize uio memory usage map once in each process */
+	pthread_mutex_lock(&mc_lock);
+	if (mc_map == NULL) {
+		const long pagesize = sysconf(_SC_PAGESIZE);
+		size_t n_pages;
+
+		n_pages = (UIO_BUFFER_MAX / pagesize) *
+			UIO_DEVICE_MAX * sizeof(unsigned char);
+		mc_map = (unsigned char (*)[UIO_DEVICE_MAX])malloc(n_pages);
+		if (mc_map == NULL) {
+			uio_close(uio);
+			return NULL;
+		}
+		memset((void *)mc_map, 0, n_pages);
+	}
+	pthread_mutex_unlock(&mc_lock);
+#endif
 
 	return uio;
 }
@@ -287,10 +315,6 @@ static int uio_mem_unlock(int fd, int offset, int count)
 	return ret;
 }
 
-static pthread_mutex_t mc_lock = PTHREAD_MUTEX_INITIALIZER;
-#define UIO_BUFPAGE_MAX		(UIO_BUFFER_MAX / PAGESIZE)
-static unsigned char mc_map[UIO_DEVICE_MAX][UIO_BUFPAGE_MAX];
-
 static int uio_mem_find(int fd, int res, int max, int count)
 {
 	int s, l, c;
@@ -298,7 +322,7 @@ static int uio_mem_find(int fd, int res, int max, int count)
 	pthread_mutex_lock(&mc_lock);
 	for (s = 0; s < max; s++) {
 		for (l = s, c = count; (l < max) && (c > 0); l++, c--) {
-			if (mc_map[res][l])
+			if (mc_map[l][res])
 				break;
 		}
 
@@ -328,7 +352,7 @@ static int uio_mem_alloc(int fd, int res, int offset, int count)
 {
 	pthread_mutex_lock(&mc_lock);
         while (count-- > 0)
-		mc_map[res][offset++] = 1U;
+		mc_map[offset++][res] = 1U;
 	pthread_mutex_unlock(&mc_lock);
 
 	return 0;
@@ -345,7 +369,7 @@ static int uio_mem_free(int fd, int res, int offset, int count)
 	if (ret == 0) {
 		pthread_mutex_lock(&mc_lock);
 		while (count-- > 0)
-			mc_map[res][offset++] = 0U;
+			mc_map[offset++][res] = 0U;
 		pthread_mutex_unlock(&mc_lock);
 	}
 
