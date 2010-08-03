@@ -293,9 +293,14 @@ static void uiomux_delete(struct uiomux *uiomux)
 
 	for (i = 0; i < UIOMUX_BLOCK_MAX; i++) {
 		block = &uiomux->blocks[i];
-		uio_close(block->uio);
-		if (block->registers != NULL)
+		if (block->uio != NULL) {
+			uio_close(block->uio);
+			block->uio = NULL;
+		}
+		if (block->registers != NULL) {
 			free(block->registers);
+			block->registers = NULL;
+		}
 	}
 
 #ifdef HAVE_ON_EXIT
