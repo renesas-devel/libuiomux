@@ -372,11 +372,29 @@ int uiomux_system_destroy(struct uiomux *uiomux)
 	return 0;
 }
 
+// TODO Hack - add block mutex to improve thread performance
+pthread_mutex_t thread_mutex[UIOMUX_BLOCK_MAX] = {
+	PTHREAD_MUTEX_INITIALIZER,
+	PTHREAD_MUTEX_INITIALIZER,
+	PTHREAD_MUTEX_INITIALIZER,
+	PTHREAD_MUTEX_INITIALIZER,
+	PTHREAD_MUTEX_INITIALIZER,
+	PTHREAD_MUTEX_INITIALIZER,
+	PTHREAD_MUTEX_INITIALIZER,
+	PTHREAD_MUTEX_INITIALIZER,
+	PTHREAD_MUTEX_INITIALIZER,
+	PTHREAD_MUTEX_INITIALIZER,
+	PTHREAD_MUTEX_INITIALIZER,
+	PTHREAD_MUTEX_INITIALIZER,
+	PTHREAD_MUTEX_INITIALIZER,
+	PTHREAD_MUTEX_INITIALIZER,
+	PTHREAD_MUTEX_INITIALIZER,
+	PTHREAD_MUTEX_INITIALIZER,
+};
+
 int uiomux_lock(struct uiomux *uiomux, uiomux_resource_t blockmask)
 {
-#ifdef HAVE_SHM_OPEN
 	pthread_mutex_t *mutex;
-#endif
 	struct uiomux_block *block;
 	unsigned long *reg_base;
 	int i, k, ret = 0;
@@ -403,6 +421,13 @@ int uiomux_lock(struct uiomux *uiomux, uiomux_resource_t blockmask)
 #endif
 #else /* HAVE_SHM_OPEN */
 			struct uio *uio;
+
+			mutex = &thread_mutex[i];
+			ret = pthread_mutex_lock(mutex);
+			if (ret != 0)
+				fprintf(stderr,
+					"%s: FAILED Locking block %d\n",
+					__func__, i);
 
 			uio = uiomux->blocks[i].uio;
 			if (!uio) {
@@ -456,9 +481,7 @@ undo_locks:
 
 int uiomux_unlock(struct uiomux *uiomux, uiomux_resource_t blockmask)
 {
-#ifdef HAVE_SHM_OPEN
 	pthread_mutex_t *mutex;
-#endif
 	struct uiomux_block *block;
 	unsigned long *reg_base;
 	int i, k, ret;
@@ -506,6 +529,13 @@ int uiomux_unlock(struct uiomux *uiomux, uiomux_resource_t blockmask)
 				ret = flock(uio->dev.fd, LOCK_UN);
 				if (ret < 0)
 					perror("flock failed");
+
+				mutex = &thread_mutex[i];
+				ret = pthread_mutex_unlock(mutex);
+				if (ret != 0)
+					fprintf(stderr,
+						"%s: FAILED Unlocking block %d\n",
+						__func__, i);
 			}
 #endif /* HAVE_SHM_OPEN */
 		}
