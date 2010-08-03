@@ -21,8 +21,8 @@
 #define __UIOMUX_UIO_H__
 
 #define UIO_DEVICE_MAX		16
-#define UIO_BUFFER_MAX		(8 * 1024 * 1024) /* 8MB, depends on
-						     get_free_pages() */
+#define UIO_BUFFER_MAX		(32 * 1024 * 1024) /* 32MB, depends on
+						      get_free_pages() */
 struct uio_device {
   char *name;
   char *path;
