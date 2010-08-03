@@ -104,6 +104,10 @@ static int setup_uio_map(struct uio_device *udp, int nr,
 		return -1;
 
 	ump->size = strtoul(buf, NULL, 0);
+#ifndef HAVE_SHM_OPEN
+	if (ump->size > UIO_BUFFER_MAX)
+		return -1;
+#endif
 
 	ump->iomem = mmap(0, ump->size,
 			  PROT_READ | PROT_WRITE, MAP_SHARED,
