@@ -70,7 +70,6 @@ AC_TYPE_SIZE_T
 
 # Checks for library functions.
 AC_FUNC_REALLOC
-AC_CHECK_FUNCS([on_exit])
 
 # Check for pkg-config
 AC_CHECK_PROG(HAVE_PKG_CONFIG, pkg-config, yes)
@@ -141,17 +140,6 @@ if test "x$PTHREAD_LIBS" = xerror; then
         AC_CHECK_FUNC(pthread_attr_init, PTHREAD_LIBS="")
 fi
 AC_SUBST(PTHREAD_LIBS)
-
-dnl
-dnl check for librt and shm_open
-dnl
-HAVE_SHM_OPEN=no
-AC_CHECK_LIB(rt, shm_open, HAVE_SHM_OPEN="yes")
-if test "x$HAVE_SHM_OPEN" = xyes ; then
-	AC_DEFINE(HAVE_SHM_OPEN, 1, [Define to 1 if you have the 'shm_open' function])
-	RT_LIBS="-lrt"
-	AC_SUBST(RT_LIBS)
-fi
 
 dnl Overall configuration success flag
 uiomux_config_ok=yes

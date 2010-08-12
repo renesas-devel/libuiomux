@@ -14,7 +14,6 @@ noinst_HEADERS = \
 
 libuiomux_la_SOURCES = \
 	dump.c \
-        state.c \
 	uio.c \
 	uiomux.c
 

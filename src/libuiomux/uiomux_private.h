@@ -33,75 +33,21 @@
  */
 
 #define UIOMUX_BLOCK_MAX 	UIO_DEVICE_MAX
-#define UIOMUX_STATE_VERSION 	3
 
 /***********************************************************
  * Library-private Types
  */
 
-struct uiomux_block {
-  struct uio * uio;
-  int nr_registers;
-  long * registers;
-};
-
-#ifdef HAVE_SHM_OPEN
-struct uiomux_mutex {
-  pthread_mutex_t mutex;
-  pthread_t prev_holder;
-};
-
-struct uiomux_state {
-  /* The base address of the memory map */
-  void * proper_address;
-
-  /* Version of this state */
-  int version;
-
-  /* Size of this state */
-  size_t size;
-
-  /* Number of blocks allocated and initialized */
-  int num_blocks;
-
-  /* Mutexes */
-  struct uiomux_mutex mutex[UIOMUX_BLOCK_MAX];
-
-  /* Pointers to page owners, which is stored immediately after shared state */
-  pid_t * owners[UIOMUX_BLOCK_MAX];
-};
-#endif /* HAVE_SHM_OPEN */
-
 struct uiomux {
-#ifdef HAVE_SHM_OPEN
-  /* Shared state */
-  struct uiomux_state * shared_state;
-#else
   /* Locked resources */
   uiomux_resource_t locked_resources;
-#endif
 
-  /* Blocks */
-  struct uiomux_block blocks[UIOMUX_BLOCK_MAX]; 
+  struct uio * uios[UIOMUX_BLOCK_MAX];
 };
 
 /***********************************************************
  * Library-private functions
  */
-
-#ifdef HAVE_SHM_OPEN
-struct uiomux_state *
-get_shared_state (void);
-
-int
-init_shared_state (struct uiomux_state * state);
-
-int
-unmap_shared_state (struct uiomux_state * state);
-
-int
-destroy_shared_state (struct uiomux_state * state);
-#endif /* HAVE_SHM_OPEN */
 
 int
 uiomux_close (struct uiomux * uiomux);

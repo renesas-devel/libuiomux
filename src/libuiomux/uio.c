@@ -104,10 +104,8 @@ static int setup_uio_map(struct uio_device *udp, int nr,
 		return -1;
 
 	ump->size = strtoul(buf, NULL, 0);
-#ifndef HAVE_SHM_OPEN
 	if (ump->size > UIO_BUFFER_MAX)
 		return -1;
-#endif
 
 	ump->iomem = mmap(0, ump->size,
 			  PROT_READ | PROT_WRITE, MAP_SHARED,
@@ -119,7 +117,6 @@ static int setup_uio_map(struct uio_device *udp, int nr,
 	return 0;
 }
 
-#ifndef HAVE_SHM_OPEN
 /*
    mc_map is a map to mark the memory regions which are occupied by
    each process.  This is required because the fcntl()'s advisory
@@ -127,7 +124,6 @@ static int setup_uio_map(struct uio_device *udp, int nr,
  */
 static pthread_mutex_t mc_lock = PTHREAD_MUTEX_INITIALIZER;
 static unsigned char (*mc_map)[UIO_DEVICE_MAX];
-#endif
 
 int uio_close(struct uio *uio)
 {
@@ -182,7 +178,7 @@ struct uio *uio_open(const char *name)
 		uio_close(uio);
 		return NULL;
 	}
-#ifndef HAVE_SHM_OPEN
+
 	/* initialize uio memory usage map once in each process */
 	pthread_mutex_lock(&mc_lock);
 	if (mc_map == NULL) {
@@ -199,7 +195,6 @@ struct uio *uio_open(const char *name)
 		memset((void *)mc_map, 0, n_pages);
 	}
 	pthread_mutex_unlock(&mc_lock);
-#endif
 
 	return uio;
 }
@@ -232,61 +227,6 @@ int uio_sleep(struct uio *uio)
 }
 
 /* Returns index */
-#ifdef HAVE_SHM_OPEN
-static int uio_mem_find(pid_t * owners, int max, int count)
-{
-	int i, c, base = -1;
-
-	for (i = 0; i < max; i++) {
-		if (base == -1) {	/* No start yet */
-			if (owners[i] == 0) {
-				base = i;
-				c = 1;
-			}
-		} else {	/* Got a base */
-			if (owners[i] == 0) {
-				c++;
-			} else {
-				base = -1;
-				c = 0;
-			}
-		}
-		if (c == count) {
-#ifdef DEBUG
-			fprintf(stderr, "%s: Found %d available pages at index %d\n",
-				__func__, c, base);
-#endif
-			return base;
-		}
-	}
-
-	return -1;
-}
-
-static int
-uio_mem_alloc_to(pid_t * owners, int offset, int count, pid_t pid)
-{
-	pid_t *p = &owners[offset];
-	int i;
-
-	for (i = 0; i < count; i++)
-		*p++ = pid;
-
-	return 0;
-}
-
-static int uio_mem_alloc(pid_t * owners, int offset, int count)
-{
-	return uio_mem_alloc_to(owners, offset, count, getpid());
-}
-
-static int uio_mem_free(pid_t * owners, int offset, int count)
-{
-	return uio_mem_alloc_to(owners, offset, count, 0);
-}
-
-#else /* HAVE_SHM_OPEN */
-
 static int uio_mem_lock(int fd, int offset, int count)
 {
 	struct flock lck;
@@ -379,13 +319,8 @@ static int uio_mem_free(int fd, int res, int offset, int count)
 
 	return ret;
 }
-#endif /* HAVE_SHM_OPEN */
 
-#ifdef HAVE_SHM_OPEN
-void *uio_malloc(struct uio *uio, pid_t * owners, size_t size, int align)
-#else
 void *uio_malloc(struct uio *uio, int resid, size_t size, int align)
-#endif
 {
 	unsigned char * mem_base;
 	int pagesize, pages_req, pages_max;
@@ -403,17 +338,10 @@ void *uio_malloc(struct uio *uio, int resid, size_t size, int align)
 	pages_max = (uio->mem.size + pagesize - 1) / pagesize;
 	pages_req = (size + pagesize - 1) / pagesize;
 
-#ifdef HAVE_SHM_OPEN
-	if ((base = uio_mem_find(owners, pages_max, pages_req)) == -1)
-		return NULL;
-
-	uio_mem_alloc(owners, base, pages_req);
-#else
 	if ((base = uio_mem_find(uio->dev.fd, resid,
 				 pages_max, pages_req)) == -1)
 		return NULL;
 	uio_mem_alloc(uio->dev.fd, resid, base, pages_req);
-#endif
 
 	mem_base = (void *)
 		((unsigned long)uio->mem.iomem + (base * pagesize));
@@ -421,28 +349,16 @@ void *uio_malloc(struct uio *uio, int resid, size_t size, int align)
 	return mem_base;
 }
 
-#ifdef HAVE_SHM_OPEN
-void uio_free(struct uio *uio, pid_t * owners, void *address, size_t size)
-#else
 void uio_free(struct uio *uio, int resid, void *address, size_t size)
-#endif
 {
 	int pagesize, base, pages_req;
-
-#ifdef DEBUG
-	fprintf(stderr, "%s: IN\n", __func__);
-#endif
 
 	pagesize = sysconf(_SC_PAGESIZE);
 
 	base = (int)(((unsigned long)address -
 		      (unsigned long)uio->mem.iomem) / pagesize);
 	pages_req = (size + pagesize - 1) / pagesize;
-#ifdef HAVE_SHM_OPEN
-	uio_mem_free(owners, base, pages_req);
-#else
 	uio_mem_free(uio->dev.fd, resid, base, pages_req);
-#endif
 }
 
 static void print_usage(int pid, long base, long top)
@@ -463,37 +379,6 @@ static void print_usage(int pid, long base, long top)
 	}
 }
 
-
-#ifdef HAVE_SHM_OPEN
-void uio_meminfo(struct uio *uio, pid_t * owners)
-{
-	int i, pagesize, pages;
-	long addr, base, top;
-	pid_t pid = 0, new_pid;
-
-	pagesize = sysconf(_SC_PAGESIZE);
-	pages = (uio->mem.size + pagesize - 1) / pagesize;
-
-	base = addr = uio->mem.address;
-	top = addr + pagesize - 1;
-	for (i = 0; i < pages; i++) {
-		new_pid = *owners++;
-		if (new_pid == pid) {
-			top += pagesize;
-		} else {
-			if (i > 0) {
-				/* Prev seg. ended */
-				print_usage(pid, base, top);
-			}
-			base = addr;
-			top = addr + pagesize - 1;
-			pid = new_pid;
-		}
-		addr += pagesize;
-	}
-	print_usage(pid, base, top);
-}
-#else /* HAVE_SHM_OPEN */
 void uio_meminfo(struct uio *uio)
 {
 	struct flock lck;
@@ -514,4 +399,3 @@ void uio_meminfo(struct uio *uio)
 			print_usage(lck.l_pid, base, base + pagesize - 1);
 	}
 }
-#endif /* HAVE_SHM_OPEN */
