@@ -227,13 +227,16 @@ int uio_sleep(struct uio *uio)
 }
 
 /* Returns index */
-static int uio_mem_lock(int fd, int offset, int count)
+static int uio_mem_lock(int fd, int offset, int count, int shared)
 {
 	struct flock lck;
 	const long pagesize = sysconf(_SC_PAGESIZE);
 	int ret;
 
-	lck.l_type = F_WRLCK;
+	if (shared)
+		lck.l_type = F_RDLCK;
+	else
+		lck.l_type = F_WRLCK;
 	lck.l_whence = SEEK_SET;
 	lck.l_start = offset * pagesize;
 	lck.l_len = count * pagesize;
@@ -259,21 +262,25 @@ static int uio_mem_unlock(int fd, int offset, int count)
 	return ret;
 }
 
-static int uio_mem_find(int fd, int res, int max, int count)
+static int uio_mem_find(int fd, int res, int max, int count, int shared)
 {
 	int s, l, c;
 
 	pthread_mutex_lock(&mc_lock);
 	for (s = 0; s < max; s++) {
 		for (l = s, c = count; (l < max) && (c > 0); l++, c--) {
-			if (mc_map[l][res])
-				break;
+			if (shared) {
+				if (mc_map[l][res] == 1U) break;
+			}
+			else {
+				if (mc_map[l][res] != 0U) break;
+			}
 		}
 
 		if (c <= 0) {
 			int ret;
 
-			ret = uio_mem_lock(fd, s, count);
+			ret = uio_mem_lock(fd, s, count, shared);
 			if (!ret)
 				goto found;
 		}
@@ -292,11 +299,12 @@ found:
 	return s;
 }
 
-static int uio_mem_alloc(int fd, int res, int offset, int count)
+static int uio_mem_alloc(int fd, int res, int offset, int count, int shared)
 {
+	unsigned char flag = (shared ? 2U : 1U);
 	pthread_mutex_lock(&mc_lock);
-        while (count-- > 0)
-		mc_map[offset++][res] = 1U;
+	while (count-- > 0)
+		mc_map[offset++][res] = flag;
 	pthread_mutex_unlock(&mc_lock);
 
 	return 0;
@@ -320,7 +328,7 @@ static int uio_mem_free(int fd, int res, int offset, int count)
 	return ret;
 }
 
-void *uio_malloc(struct uio *uio, int resid, size_t size, int align)
+void *uio_malloc(struct uio *uio, int resid, size_t size, int align, int shared)
 {
 	unsigned char * mem_base;
 	int pagesize, pages_req, pages_max;
@@ -339,9 +347,9 @@ void *uio_malloc(struct uio *uio, int resid, size_t size, int align)
 	pages_req = (size + pagesize - 1) / pagesize;
 
 	if ((base = uio_mem_find(uio->dev.fd, resid,
-				 pages_max, pages_req)) == -1)
+				 pages_max, pages_req, shared)) == -1)
 		return NULL;
-	uio_mem_alloc(uio->dev.fd, resid, base, pages_req);
+	uio_mem_alloc(uio->dev.fd, resid, base, pages_req, shared);
 
 	mem_base = (void *)
 		((unsigned long)uio->mem.iomem + (base * pagesize));

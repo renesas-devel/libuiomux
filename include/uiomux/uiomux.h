@@ -293,6 +293,19 @@ uiomux_malloc (UIOMux * uiomux, uiomux_resource_t resource,
                size_t size, int align);
 
 /**
+ * Allocate shared iomem from a UIO managed resource. There can only be one shared
+ * memory region for a UIO device.
+ * \param uiomux A UIOMux handle
+ * \param resource A single named resource
+ * \returns Address of allocated memory
+ * \retval NULL Failure: unable to allocate, or attempt to allocate
+ * from more than one resource.
+ */
+void *
+uiomux_malloc_shared (UIOMux * uiomux, uiomux_resource_t resource,
+               size_t size, int align);
+
+/**
  * Free iomem from a UIO managed resource.
  * \param uiomux A UIOMux handle
  * \param resource A single named resource

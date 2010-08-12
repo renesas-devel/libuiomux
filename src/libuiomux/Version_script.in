@@ -9,7 +9,7 @@
 {
         global:
 		uiomux_open;
-                uiomux_close;
+		uiomux_close;
 		uiomux_lock;
 		uiomux_unlock;
 		uiomux_sleep;
@@ -22,13 +22,14 @@
 		uiomux_virt_to_phys;
 		uiomux_phys_to_virt;
 		uiomux_malloc;
+		uiomux_malloc_shared;
 		uiomux_free;
 
 		uiomux_dump_mmio;
 		uiomux_dump_mmio_filename;
 
-                uiomux_system_reset;
-                uiomux_system_destroy;
+		uiomux_system_reset;
+		uiomux_system_destroy;
 
         local:
                 *;
