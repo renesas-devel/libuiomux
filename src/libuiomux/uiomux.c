@@ -250,9 +250,7 @@ void *uiomux_malloc(struct uiomux *uiomux, uiomux_resource_t blockmask,
 		fprintf(stderr, "%s: Allocating %d bytes for block %d\n",
 			__func__, size, i);
 #endif
-		pthread_mutex_lock(&thread_mutex[i]);
 		ret = uio_malloc(uio, i, size, align, 0);
-		pthread_mutex_unlock(&thread_mutex[i]);
 	}
 
 	return ret;
@@ -276,9 +274,7 @@ void *uiomux_malloc_shared(struct uiomux *uiomux, uiomux_resource_t blockmask,
 		fprintf(stderr, "%s: Allocating %d bytes shm for block %d\n",
 			__func__, size, i);
 #endif
-		pthread_mutex_lock(&thread_mutex[i]);
 		ret = uio_malloc(uio, i, size, align, 1);
-		pthread_mutex_unlock(&thread_mutex[i]);
 	}
 
 	return ret;
@@ -302,9 +298,7 @@ uiomux_free(struct uiomux *uiomux, uiomux_resource_t blockmask,
 		fprintf(stderr, "%s: Freeing memory for block %d\n",
 			__func__, i);
 #endif
-		pthread_mutex_lock(&thread_mutex[i]);
 		uio_free(uio, i, address, size);
-		pthread_mutex_unlock(&thread_mutex[i]);
 	}
 }
 
