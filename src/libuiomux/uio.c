@@ -230,7 +230,6 @@ int uio_sleep(struct uio *uio)
 static int uio_mem_lock(int fd, int offset, int count, int shared)
 {
 	struct flock lck;
-	const long pagesize = sysconf(_SC_PAGESIZE);
 	int ret;
 
 	if (shared)
@@ -238,8 +237,8 @@ static int uio_mem_lock(int fd, int offset, int count, int shared)
 	else
 		lck.l_type = F_WRLCK;
 	lck.l_whence = SEEK_SET;
-	lck.l_start = offset * pagesize;
-	lck.l_len = count * pagesize;
+	lck.l_start = offset;
+	lck.l_len = count;
 
 	ret = fcntl(fd, F_SETLK, &lck);
 
@@ -248,14 +247,13 @@ static int uio_mem_lock(int fd, int offset, int count, int shared)
 
 static int uio_mem_unlock(int fd, int offset, int count)
 {
-	const long pagesize = sysconf(_SC_PAGESIZE);
 	struct flock lck;
 	int ret;
 
 	lck.l_type = F_UNLCK;
 	lck.l_whence = SEEK_SET;
-	lck.l_start = offset * pagesize;
-	lck.l_len = count * pagesize;
+	lck.l_start = offset;
+	lck.l_len = count;
 
 	ret = fcntl(fd, F_SETLK, &lck);
 
