@@ -33,6 +33,7 @@
 #include <fcntl.h>
 #include <pthread.h>
 
+#include "uiomux/uiomux.h"
 #include "uiomux_private.h"
 #include "uio.h"
 
@@ -150,8 +151,6 @@ int uiomux_lock(struct uiomux *uiomux, uiomux_resource_t blockmask)
 
 undo_locks:
 	{
-		extern int uiomux_unlock(struct uiomux *,
-					 uiomux_resource_t);
 		int save_errno = errno;
 		uiomux_unlock(uiomux, uiomux->locked_resources);
 		errno = save_errno;
@@ -210,10 +209,10 @@ uiomux_get_block_index(struct uiomux *uiomux, uiomux_resource_t blockmask)
 	return -1;
 }
 
-long uiomux_sleep(struct uiomux *uiomux, uiomux_resource_t blockmask)
+int uiomux_sleep(struct uiomux *uiomux, uiomux_resource_t blockmask)
 {
 	struct uio *uio;
-	long ret = 0;
+	int ret = 0;
 	int i;
 
 	/* Invalid if multiple bits are set, or block not found */

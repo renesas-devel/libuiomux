@@ -153,7 +153,8 @@ extern "C" {
  * An opaque handle to a set of blocks. This is returned by uiomux_open(),
  * and is passed to other uiomux_* functions.
  */
-typedef void UIOMux;
+struct uiomux;
+typedef struct uiomux UIOMux;
 
 /**
  * Query which blocks are available on this platform.
