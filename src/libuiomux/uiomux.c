@@ -382,6 +382,7 @@ int uiomux_lock(struct uiomux *uiomux, uiomux_resource_t blockmask)
 			}
 #endif
 
+			uio_lock(uiomux->blocks[i].uio);
 		}
 	}
 

@@ -195,6 +195,30 @@ int uio_sleep(struct uio *uio)
 	return 0;
 }
 
+int uio_lock(struct uio *uio)
+{
+	int fd, ret;
+	unsigned long n_pending;
+
+	fd = uio->dev.fd;
+
+	/* Perform a non-blocking read. This is needed to allow multiple file
+	   handles to work since UIO read returns when the number of interrupts
+	   recieved is different to that stored in the file handle. The latter
+	   is only updated in open and read. */
+	ret = fcntl(fd, F_SETFL, O_SYNC | O_NONBLOCK);
+	if (ret < 0)
+		return ret;
+
+	ret = read(fd, &n_pending, sizeof(u_long));
+	fcntl(fd, F_SETFL, O_SYNC);
+
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 /* Returns index */
 static int uio_mem_find(pid_t * owners, int max, int count)
 {
