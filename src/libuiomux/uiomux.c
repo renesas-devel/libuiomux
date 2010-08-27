@@ -144,6 +144,7 @@ int uiomux_lock(struct uiomux *uiomux, uiomux_resource_t blockmask)
 				goto undo_locks;
 			}
 			uiomux->locked_resources |= 1U << i;
+			uio_lock(uio);
 		}
 	}
 
