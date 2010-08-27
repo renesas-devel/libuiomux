@@ -50,6 +50,9 @@ uio_close (struct uio * uio);
 int
 uio_sleep (struct uio * uio);
 
+int
+uio_lock(struct uio *uio);
+
 #ifdef HAVE_SHM_OPEN
 void *
 uio_malloc (struct uio * uio, pid_t * owners, size_t size, int align);

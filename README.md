@@ -21,6 +21,11 @@ INSTALL. The conventional build procedure applies:
     $ make
     $ make install
 
+If INSTALL and configure are missing, you are using source from the repository
+and need to run the following command first:
+
+    $ autoreconf -vif
+
 To run various unit tests on the build host, do:
 
     $ make check
