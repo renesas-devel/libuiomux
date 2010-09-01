@@ -39,11 +39,26 @@
 
 /* #define DEBUG */
 
+static int init_done = 0;
+static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t uio_mutex[UIOMUX_BLOCK_MAX];
+
 struct uiomux *uiomux_open(void)
 {
 	struct uiomux *uiomux;
 	const char *name = NULL;
 	int i;
+
+	pthread_mutex_lock(&mutex);
+	if (!init_done) {
+		pthread_mutex_t temp_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+		for (i = 0; i < UIOMUX_BLOCK_MAX; i++)
+			memcpy(&uio_mutex[i], &temp_mutex, sizeof(temp_mutex));
+
+		init_done = 1;
+	}
+	pthread_mutex_unlock(&mutex);
 
 	uiomux = (struct uiomux *) calloc(1, sizeof(*uiomux));
 
@@ -99,26 +114,6 @@ int uiomux_system_destroy(struct uiomux *uiomux)
 	return 0;
 }
 
-// TODO Hack - add block mutex to improve thread performance
-pthread_mutex_t thread_mutex[UIOMUX_BLOCK_MAX] = {
-	PTHREAD_MUTEX_INITIALIZER,
-	PTHREAD_MUTEX_INITIALIZER,
-	PTHREAD_MUTEX_INITIALIZER,
-	PTHREAD_MUTEX_INITIALIZER,
-	PTHREAD_MUTEX_INITIALIZER,
-	PTHREAD_MUTEX_INITIALIZER,
-	PTHREAD_MUTEX_INITIALIZER,
-	PTHREAD_MUTEX_INITIALIZER,
-	PTHREAD_MUTEX_INITIALIZER,
-	PTHREAD_MUTEX_INITIALIZER,
-	PTHREAD_MUTEX_INITIALIZER,
-	PTHREAD_MUTEX_INITIALIZER,
-	PTHREAD_MUTEX_INITIALIZER,
-	PTHREAD_MUTEX_INITIALIZER,
-	PTHREAD_MUTEX_INITIALIZER,
-	PTHREAD_MUTEX_INITIALIZER,
-};
-
 int uiomux_lock(struct uiomux *uiomux, uiomux_resource_t blockmask)
 {
 	unsigned long *reg_base;
@@ -127,17 +122,21 @@ int uiomux_lock(struct uiomux *uiomux, uiomux_resource_t blockmask)
 
 	for (i = 0; i < UIOMUX_BLOCK_MAX; i++) {
 		if (blockmask & (1 << i)) {
-			ret = pthread_mutex_lock(&thread_mutex[i]);
-			if (ret != 0)
-				fprintf(stderr,
-					"%s: FAILED Locking block %d\n",
-					__func__, i);
-
 			uio = uiomux->uios[i];
 			if (!uio) {
 				fprintf(stderr, "No uio exists.\n");
 				goto undo_locks;
 			}
+
+			/* Lock uio within this process. This is required because the
+			   fcntl()'s advisory lock is only valid between processes, not
+			   within a process. */
+			ret = pthread_mutex_lock(&uio_mutex[i]);
+			if (ret != 0) {
+				perror("pthread_mutex_lock failed");
+				goto undo_locks;
+			}
+
 			ret = flock(uio->dev.fd, LOCK_EX);
 			if (ret < 0) {
 				perror("flock failed");
@@ -174,11 +173,9 @@ int uiomux_unlock(struct uiomux *uiomux, uiomux_resource_t blockmask)
 				if (ret < 0)
 					perror("flock failed");
 
-				ret = pthread_mutex_unlock(&thread_mutex[i]);
+				ret = pthread_mutex_unlock(&uio_mutex[i]);
 				if (ret != 0)
-					fprintf(stderr,
-						"%s: FAILED Unlocking block %d\n",
-						__func__, i);
+					perror("pthread_mutex_unlock failed");
 			}
 		}
 	}
