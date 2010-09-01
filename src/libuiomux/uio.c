@@ -125,6 +125,10 @@ static int setup_uio_map(struct uio_device *udp, int nr,
 static pthread_mutex_t mc_lock = PTHREAD_MUTEX_INITIALIZER;
 static unsigned char (*mc_map)[UIO_DEVICE_MAX];
 
+#define PAGE_FREE      0
+#define PAGE_ALLOCATED 1
+#define PAGE_SHARED    2
+
 int uio_close(struct uio *uio)
 {
 	if (uio == NULL)
@@ -192,7 +196,7 @@ struct uio *uio_open(const char *name)
 			uio_close(uio);
 			return NULL;
 		}
-		memset((void *)mc_map, 0, n_pages);
+		memset((void *)mc_map, PAGE_FREE, n_pages);
 	}
 	pthread_mutex_unlock(&mc_lock);
 
@@ -297,10 +301,10 @@ static int uio_mem_find(int fd, int res, int max, int count, int shared)
 		/* Find memory region not used by this process */
 		for (l = s, c = count; (l < max) && (c > 0); l++, c--) {
 			if (shared) {
-				if (mc_map[l][res] == 1U) break;
+				if (mc_map[l][res] == PAGE_ALLOCATED) break;
 			}
 			else {
-				if (mc_map[l][res] != 0U) break;
+				if (mc_map[l][res] != PAGE_FREE) break;
 			}
 		}
 
@@ -329,7 +333,7 @@ found:
 
 static int uio_mem_alloc(int fd, int res, int offset, int count, int shared)
 {
-	unsigned char flag = (shared ? 2U : 1U);
+	unsigned char flag = (shared ? PAGE_SHARED : PAGE_ALLOCATED);
 	pthread_mutex_lock(&mc_lock);
 	while (count-- > 0)
 		mc_map[offset++][res] = flag;
@@ -348,7 +352,7 @@ static int uio_mem_free(int fd, int res, int offset, int count)
 	if (ret == 0) {
 		pthread_mutex_lock(&mc_lock);
 		while (count-- > 0)
-			mc_map[offset++][res] = 0U;
+			mc_map[offset++][res] = PAGE_FREE;
 		pthread_mutex_unlock(&mc_lock);
 	}
 
