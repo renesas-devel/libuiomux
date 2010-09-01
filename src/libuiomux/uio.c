@@ -284,12 +284,17 @@ static int uio_mem_unlock(int fd, int offset, int count)
 	return ret;
 }
 
+/* Find a region of unused memory by attempting to lock the file at successive
+ * offsets. Obviously this will be quite slow if another process has already
+ * allocated memory.
+ */
 static int uio_mem_find(int fd, int res, int max, int count, int shared)
 {
 	int s, l, c;
 
 	pthread_mutex_lock(&mc_lock);
 	for (s = 0; s < max; s++) {
+		/* Find memory region not used by this process */
 		for (l = s, c = count; (l < max) && (c > 0); l++, c--) {
 			if (shared) {
 				if (mc_map[l][res] == 1U) break;
@@ -302,6 +307,7 @@ static int uio_mem_find(int fd, int res, int max, int count, int shared)
 		if (c <= 0) {
 			int ret;
 
+			/* Attempt to lock the region */
 			ret = uio_mem_lock(fd, s, count, shared);
 			if (!ret)
 				goto found;
