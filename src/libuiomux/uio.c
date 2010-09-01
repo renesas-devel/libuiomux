@@ -335,7 +335,6 @@ static int uio_mem_alloc(int fd, int res, int offset, int count, int shared)
 static int uio_mem_free(int fd, int res, int offset, int count)
 {
 	struct flock lck;
-	const long pagesize = sysconf(_SC_PAGESIZE);
 	int ret;
 
 	ret = uio_mem_unlock(fd, offset, count);
