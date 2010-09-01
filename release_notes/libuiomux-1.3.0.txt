@@ -1,0 +1,79 @@
+UIOMux Release 1.3.0
+====================
+
+UIOMux is a conflict manager for system resources, including UIO devices.
+
+The source archive, and more information about the library are available from:
+
+	http://oss.renesas.com/modules/document/?libuiomux
+
+This release of libuiomux targets Renesas SH-Mobile processors.
+
+New in this release
+-------------------
+
+This release replaces shared memory with flock and fcntl. The main driver for
+this is Android's different take on shared memory. Instead of using mutexes
+stored in shared memory, this release locks using flock. Also, instead of using
+shared memory to store information on used UIO memory, this release use fcntl
+to lock the UIO file accordingly.
+
+In addition to these changes, this release adds a function to allocate shared
+UIO memory (uiomux_malloc_shared). This only supports a single shared memory
+region for each UIO device.
+
+Changes
+-------
+
+This release includes the following changes since version 1.2.0:
+
+Phil Edworthy (21):
+	Change fn name to more accurately reflect it's operation
+	Add memory allocation check
+	Clean up uio locking for all threads in current process
+	Replaced hard coded values with defs
+	Add comments to uio_mem_find
+	Remove unused code
+	Fix meminfo
+	Merge branch 'flock-only' into flock-shm
+	Merge branch 'master' into flock-only
+	Fix problem with multiple handles and uiomux_sleep.
+	docs: Add information on building code from the repo
+	Only lock 1 byte per page
+	Include own function prototypes.
+	Remove redundant locks.
+	Added simple shared uio memory capability
+	Use flock instead of shm (removed all shm code)
+	tests: Add thread locking test
+	Add mutex to improve thread performance
+	Fix problem with applying on_exit patch (2)
+	Fix problem with applying on_exit patch
+	Remove unrelated code that was commented out
+
+Katsuya Matsubara (6):
+	prevent double-free in uiomux_delete()
+	flock: check uio memory size for memory usage map
+	flock: change UIO_BUFFER_MAX up to 32MB
+	flock: remove use of PAGESIZE
+	flock: treat multiple memory allocations in a process
+	Another implementation using file based lock feature
+
+ Makefile.am                     |    2 +
+ README.md                       |    5 +
+ autogen.sh                      |  129 ----------
+ configure.ac                    |   11 -
+ include/uiomux/uiomux.h         |   20 ++-
+ src/libuiomux/Makefile.am       |    1 -
+ src/libuiomux/Version_script.in |    7 +-
+ src/libuiomux/state.c           |  301 ----------------------
+ src/libuiomux/uio.c             |  234 ++++++++++++-----
+ src/libuiomux/uio.h             |   12 +-
+ src/libuiomux/uiomux.c          |  533 +++++++++++----------------------------
+ src/libuiomux/uiomux_private.h  |   54 +----
+ src/tests/Makefile.am           |    6 +-
+ src/tests/locking.c             |  105 ++++++++
+ 14 files changed, 461 insertions(+), 959 deletions(-)
+ delete mode 100755 autogen.sh
+ delete mode 100644 src/libuiomux/state.c
+ create mode 100644 src/tests/locking.c
+

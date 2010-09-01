@@ -24,7 +24,7 @@ AC_CONFIG_MACRO_DIR([m4])
 
 AC_PREREQ(2.53)
 
-AM_INIT_AUTOMAKE(libuiomux, 1.2.0)
+AM_INIT_AUTOMAKE(libuiomux, 1.3.0)
 AM_CONFIG_HEADER(config.h)
 
 ################################################################################
@@ -44,7 +44,7 @@ AM_CONFIG_HEADER(config.h)
 #     then set AGE to 0.                                                       #
 #                                                                              #
 ################################################################################
-SHARED_VERSION_INFO="3:0:2"
+SHARED_VERSION_INFO="4:0:3"
 SHLIB_VERSION_ARG=""
 
 # Checks for programs.
