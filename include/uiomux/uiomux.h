@@ -227,7 +227,7 @@ uiomux_unlock (UIOMux * uiomux, uiomux_resource_t resources);
 int
 uiomux_sleep (UIOMux * uiomux, uiomux_resource_t resource);
 
-/*
+/**
  * Get the address and size of the MMIO region for a UIO managed resource.
  * \param uiomux A UIOMux handle
  * \param resource A single named resource
@@ -241,7 +241,7 @@ unsigned long
 uiomux_get_mmio (UIOMux * uiomux, uiomux_resource_t resource,
                  unsigned long * address, unsigned long * size, void ** iomem);
 
-/*
+/**
  * Get the address and size of the user memory region for a UIO managed resource.
  * \param uiomux A UIOMux handle
  * \param resource A single named resource
