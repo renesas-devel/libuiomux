@@ -421,8 +421,8 @@ void uio_meminfo(struct uio *uio)
 		base = uio->mem.address + count * pagesize;
 		lck.l_type = F_WRLCK;
 		lck.l_whence = SEEK_SET;
-		lck.l_start = count * pagesize;
-		lck.l_len = pagesize;
+		lck.l_start = count;
+		lck.l_len = 1;
 		lck.l_pid = 0;
 		ret = fcntl(uio->dev.fd, F_GETLK, &lck);
 		if (ret == 0)
