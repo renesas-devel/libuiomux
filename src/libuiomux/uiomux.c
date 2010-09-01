@@ -61,6 +61,8 @@ struct uiomux *uiomux_open(void)
 	pthread_mutex_unlock(&mutex);
 
 	uiomux = (struct uiomux *) calloc(1, sizeof(*uiomux));
+	if (!uiomux)
+		return NULL;
 
 	/* Open handles to all hardware blocks */
 	for (i = 0; i < UIOMUX_BLOCK_MAX; i++) {
