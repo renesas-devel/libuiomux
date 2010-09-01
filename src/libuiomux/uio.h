@@ -51,7 +51,7 @@ int
 uio_sleep (struct uio * uio);
 
 int
-uio_lock(struct uio *uio);
+uio_read_nonblocking(struct uio *uio);
 
 void *
 uio_malloc (struct uio * uio, int resid, size_t size, int align, int shared);

@@ -230,7 +230,7 @@ int uio_sleep(struct uio *uio)
 	return 0;
 }
 
-int uio_lock(struct uio *uio)
+int uio_read_nonblocking(struct uio *uio)
 {
 	int fd, ret;
 	unsigned long n_pending;
