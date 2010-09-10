@@ -228,6 +228,18 @@ int
 uiomux_sleep (UIOMux * uiomux, uiomux_resource_t resource);
 
 /**
+ * Wake up any processes waiting for UIO events via a uiomux_sleep*
+ * command.
+ * The woken processes should be all confirm being woken before
+ * uiomux_close is called.
+ * \param uiomux A UIOMux handle
+ * \param resource A single named resource
+ * \retval 0 Success
+ */
+int
+uiomux_wakeup(struct uiomux *uiomux, uiomux_resource_t resource);
+
+/**
  * Get the address and size of the MMIO region for a UIO managed resource.
  * \param uiomux A UIOMux handle
  * \param resource A single named resource

@@ -225,10 +225,31 @@ int uiomux_sleep(struct uiomux *uiomux, uiomux_resource_t blockmask)
 #ifdef DEBUG
 		fprintf(stderr, "%s: Waiting for block %d\n", __func__, i);
 #endif
-		ret = uio_sleep(uio);
+		ret = uio_sleep(uio, NULL);
 	}
 
 	return ret;
+}
+
+int uiomux_wakeup(struct uiomux *uiomux, uiomux_resource_t blockmask)
+{
+	struct uio *uio;
+	int ret = 0;
+	int i;
+
+	/* Invalid if multiple bits are set, or block not found */
+	if ((i = uiomux_get_block_index(uiomux, blockmask)) == -1)
+		return -1;
+
+	uio = uiomux->uios[i];
+
+	if (uio) {
+#ifdef DEBUG
+		fprintf(stderr, "%s: Waking up block %d\n", __func__, i);
+#endif
+		write (uio->exit_sleep_pipe[1], "UIOX", 4);
+	}
+	return 0;
 }
 
 void *uiomux_malloc(struct uiomux *uiomux, uiomux_resource_t blockmask,

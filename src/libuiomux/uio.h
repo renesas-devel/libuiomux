@@ -39,6 +39,7 @@ struct uio {
   struct uio_device dev;
   struct uio_map mmio;
   struct uio_map mem;
+  int exit_sleep_pipe[2];
 };
 
 struct uio *
@@ -48,7 +49,7 @@ int
 uio_close (struct uio * uio);
 
 int
-uio_sleep (struct uio * uio);
+uio_sleep(struct uio *uio, struct timeval *timeout);
 
 int
 uio_read_nonblocking(struct uio *uio);

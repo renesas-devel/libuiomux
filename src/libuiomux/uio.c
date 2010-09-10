@@ -147,6 +147,10 @@ int uio_close(struct uio *uio)
 	if (uio->dev.name)
 		free(uio->dev.name);
 
+	if (uio->exit_sleep_pipe[0] > 0) {
+		close(uio->exit_sleep_pipe[0]);
+		close(uio->exit_sleep_pipe[1]);
+	}
 	free(uio);
 
 	return 0;
@@ -183,6 +187,8 @@ struct uio *uio_open(const char *name)
 		return NULL;
 	}
 
+	pipe(uio->exit_sleep_pipe);
+
 	/* initialize uio memory usage map once in each process */
 	pthread_mutex_lock(&mc_lock);
 	if (mc_map == NULL) {
@@ -203,11 +209,16 @@ struct uio *uio_open(const char *name)
 	return uio;
 }
 
-int uio_sleep(struct uio *uio)
+int uio_sleep(struct uio *uio, struct timeval *timeout)
 {
 	int fd, ret;
+	fd_set readset;
+	int nfds;
+	int exit_fd;
 
 	fd = uio->dev.fd;
+
+	exit_fd = uio->exit_sleep_pipe[0];
 
 	/* Enable interrupt in UIO driver */
 	{
@@ -221,7 +232,19 @@ int uio_sleep(struct uio *uio)
 	/* Wait for an interrupt */
 	{
 		unsigned long n_pending;
+		FD_ZERO(&readset);
+		FD_SET(fd, &readset);
+		FD_SET(exit_fd, &readset);
 
+		nfds = fd > exit_fd ? fd + 1 : exit_fd + 1;
+
+		ret = select(nfds, &readset, NULL, NULL, timeout);
+		if (!ret)
+			return -1;
+		if (FD_ISSET(exit_fd, &readset)) {
+			read(exit_fd, &n_pending, sizeof(u_long));
+			return -1;
+		}
 		ret = read(fd, &n_pending, sizeof(u_long));
 		if (ret < 0)
 			return ret;
