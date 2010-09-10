@@ -228,6 +228,20 @@ int
 uiomux_sleep (UIOMux * uiomux, uiomux_resource_t resource);
 
 /**
+ * Wait for a UIO managed resource to complete its activity.
+ * \param uiomux A UIOMux handle
+ * \param resource A single named resource
+ * \param timeout A timeval structure to specify length of timeout
+ *                NULL -> no timeout
+ *                0    -> return immediately (after checking interrupt status)
+ * \retval 0 Success
+ * \retval -1 No interrupt occured before the timeout expired or uiomux was closed
+ */
+int
+uiomux_sleep_timeout (UIOMux * uiomux, uiomux_resource_t resource,
+		struct timeval *timeout);
+
+/**
  * Wake up any processes waiting for UIO events via a uiomux_sleep*
  * command.
  * The woken processes should be all confirm being woken before
