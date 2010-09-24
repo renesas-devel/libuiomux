@@ -12,7 +12,7 @@ TESTS_ENVIRONMENT = $(VALGRIND_ENVIRONMENT)
 
 test: check
 
-basic_tests = noop double-open multiple-open lock-unlock fork threads fork-threads exit-locked locking
+basic_tests = noop double-open multiple-open lock-unlock fork threads fork-threads exit-locked locking wakeup
 
 noinst_PROGRAMS = $(basic_tests)
 noinst_HEADERS = uiomux_tests.h
@@ -46,3 +46,5 @@ exit_locked_LDADD = $(UIOMUX_LIBS)
 locking_SOURCES = locking.c
 locking_LDADD = $(UIOMUX_LIBS)
 
+wakeup_SOURCES = wakeup.c
+wakeup_LDADD = $(UIOMUX_LIBS)

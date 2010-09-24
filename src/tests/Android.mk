@@ -72,3 +72,11 @@ LOCAL_SHARED_LIBRARIES := libuiomux
 LOCAL_MODULE := exit-locked
 include $(BUILD_EXECUTABLE)
 
+#wakeup
+include $(CLEAR_VARS)
+LOCAL_C_INCLUDES := external/libuiomux/include
+LOCAL_CFLAGS := -DVERSION=\"1.0.0\"
+LOCAL_SRC_FILES := wakeup.c
+LOCAL_SHARED_LIBRARIES := libuiomux
+LOCAL_MODULE := wakeup
+include $(BUILD_EXECUTABLE)
