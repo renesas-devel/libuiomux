@@ -80,3 +80,12 @@ LOCAL_SRC_FILES := wakeup.c
 LOCAL_SHARED_LIBRARIES := libuiomux
 LOCAL_MODULE := wakeup
 include $(BUILD_EXECUTABLE)
+
+#timeout
+include $(CLEAR_VARS)
+LOCAL_C_INCLUDES := external/libuiomux/include
+LOCAL_CFLAGS := -DVERSION=\"1.0.0\"
+LOCAL_SRC_FILES := timeout.c
+LOCAL_SHARED_LIBRARIES := libuiomux
+LOCAL_MODULE := timeout
+include $(BUILD_EXECUTABLE)
