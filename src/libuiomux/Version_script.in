@@ -13,6 +13,8 @@
 		uiomux_lock;
 		uiomux_unlock;
 		uiomux_sleep;
+		uiomux_sleep_timeout;
+		uiomux_wakeup;
 		uiomux_query;
 		uiomux_name;
 		uiomux_info;
