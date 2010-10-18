@@ -22,6 +22,7 @@
 		uiomux_get_mmio;
 		uiomux_get_mem;
 		uiomux_virt_to_phys;
+		uiomux_all_virt_to_phys;
 		uiomux_phys_to_virt;
 		uiomux_malloc;
 		uiomux_malloc_shared;

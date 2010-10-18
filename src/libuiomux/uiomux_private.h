@@ -32,6 +32,7 @@
  * Library-private defines
  */
 
+#define UIOMUX_MAX_HANDLES	32
 #define UIOMUX_BLOCK_MAX 	UIO_DEVICE_MAX
 
 /***********************************************************

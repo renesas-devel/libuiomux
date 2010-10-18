@@ -43,6 +43,8 @@ static int init_done = 0;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t uio_mutex[UIOMUX_BLOCK_MAX];
 
+static struct uiomux *g_uiomux[UIOMUX_MAX_HANDLES] = {NULL};
+
 struct uiomux *uiomux_open(void)
 {
 	struct uiomux *uiomux;
@@ -71,6 +73,15 @@ struct uiomux *uiomux_open(void)
 		}
 	}
 
+	/* Keep track of uiomux handles */
+	pthread_mutex_lock(&mutex);
+	for (i = 0; i < UIOMUX_MAX_HANDLES; i++) {
+		if (g_uiomux[i] == NULL) {
+			g_uiomux[i] = uiomux;
+		}
+	}	
+	pthread_mutex_unlock(&mutex);
+
 	return uiomux;
 }
 
@@ -79,12 +90,23 @@ static void uiomux_delete(struct uiomux *uiomux)
 	struct uio *uio;
 	int i;
 
+	pthread_mutex_lock(&mutex);
+
 	for (i = 0; i < UIOMUX_BLOCK_MAX; i++) {
 		uio = uiomux->uios[i];
 		if (uio != NULL) {
 			uio_close(uio);
 		}
 	}
+
+	/* Keep track of uiomux handles */
+	for (i = 0; i < UIOMUX_MAX_HANDLES; i++) {
+		if (g_uiomux[i] == uiomux) {
+			g_uiomux[i] = NULL;
+		}
+	}	
+
+	pthread_mutex_unlock(&mutex);
 
 	free(uiomux);
 }
@@ -454,6 +476,48 @@ uiomux_virt_to_phys(struct uiomux *uiomux, uiomux_resource_t blockmask,
 
 	return 0;
 }
+
+unsigned long
+uiomux_all_virt_to_phys(void *virt_address)
+{
+	struct uiomux *uiomux;
+	struct uio *uio;
+	unsigned long ret;
+	int i, j;
+
+	pthread_mutex_lock(&mutex);
+
+	for (j = 0; j < UIOMUX_MAX_HANDLES; j++)
+	{
+		uiomux = g_uiomux[j];
+		if (uiomux == NULL)
+			continue;
+
+		for (i = 0; i < UIOMUX_BLOCK_MAX; i++)
+		{
+			uio = uiomux->uios[i];
+
+			/* Invalid if no uio associated with it */
+			if (uio == NULL)
+				continue;
+
+			if ((ret =
+				 uio_map_virt_to_phys(&uio->mem,
+						  virt_address)) != (unsigned long) -1)
+				return ret;
+
+			if ((ret =
+				 uio_map_virt_to_phys(&uio->mmio,
+						  virt_address)) != (unsigned long) -1)
+				return ret;
+		}
+	}
+
+	pthread_mutex_unlock(&mutex);
+
+	return 0;
+}
+
 
 void *
 uiomux_phys_to_virt(struct uiomux *uiomux, uiomux_resource_t blockmask,

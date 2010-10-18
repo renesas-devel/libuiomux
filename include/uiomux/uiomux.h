@@ -295,6 +295,15 @@ uiomux_virt_to_phys (UIOMux * uiomux, uiomux_resource_t blockmask,
                      void * virt_address);
 
 /**
+ * Convert a virtual address to a physical address
+ * \param virt_address Virtual address to convert
+ * \returns Physical address corresponding to mapped virtual address
+ * \retval 0 Failure: virtual address is not managed by UIOMux.
+ */
+unsigned long
+uiomux_all_virt_to_phys (void * virt_address);
+
+/**
  * Convert a physical address to a virtual address
  * \param uiomux A UIOMux handle
  * \param resource A single named resource
