@@ -27,6 +27,8 @@
 		uiomux_malloc;
 		uiomux_malloc_shared;
 		uiomux_free;
+		uiomux_register;
+		uiomux_unregister;
 
 		uiomux_dump_mmio;
 		uiomux_dump_mmio_filename;

@@ -32,7 +32,6 @@
  * Library-private defines
  */
 
-#define UIOMUX_MAX_HANDLES	32
 #define UIOMUX_BLOCK_MAX 	UIO_DEVICE_MAX
 
 /***********************************************************
@@ -44,6 +43,13 @@ struct uiomux {
   uiomux_resource_t locked_resources;
 
   struct uio * uios[UIOMUX_BLOCK_MAX];
+};
+
+struct uiomux_addr_block {
+	void *virt;
+	unsigned long phys;
+	size_t size;
+	struct uiomux_addr_block *next;
 };
 
 /***********************************************************

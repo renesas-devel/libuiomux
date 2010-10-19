@@ -352,6 +352,29 @@ void
 uiomux_free (UIOMux * uiomux, uiomux_resource_t resource,
              void * address, size_t size);
 
+/**
+ * Register a region of memory as accessible by the resources.
+ * This region is included in the list of regions covered by
+ * uiomux_all_virt_to_phys.
+ * \param virt Virtual address of memory region
+ * \param phys_address Physical address of memory region
+ * \param size Size of memory region
+ * \retval 0 Success
+ */
+int
+uiomux_register (void *virt, unsigned long phys_address, size_t size);
+
+/**
+ * Unregister a region of memory as accessible by the resources.
+ * This region is removed from the list of regions covered by
+ * uiomux_all_virt_to_phys.
+ * \param virt Virtual address of memory region
+ * \retval 0 Success
+ */
+int
+uiomux_unregister (void *virt);
+
+
 #include <uiomux/system.h>
 #include <uiomux/dump.h>
 
