@@ -364,15 +364,22 @@ void *uiomux_malloc(struct uiomux *uiomux, uiomux_resource_t blockmask,
 		fprintf(stderr, "%s: Allocating %d bytes for block %d\n",
 			__func__, size, i);
 #endif
+		mem = malloc(sizeof(*mem));
+		if (!mem)
+			return NULL;
+
 		ret = uio_malloc(uio, i, size, align, 0);
 
-		mem = malloc(sizeof(*mem));
-		mem->virt = ret;
-		mem->phys = uio->mem.address + (ret - uio->mem.iomem);
-		mem->size = size;
-		pthread_mutex_lock(&mutex);
-		add_mem_block(&g_mem_regions, mem);
-		pthread_mutex_unlock(&mutex);
+		if (ret) {
+			mem->virt = ret;
+			mem->phys = uio->mem.address + (ret - uio->mem.iomem);
+			mem->size = size;
+			pthread_mutex_lock(&mutex);
+			add_mem_block(&g_mem_regions, mem);
+			pthread_mutex_unlock(&mutex);
+		} else {
+			free(mem);
+		}
 
 #ifdef DEBUG
 		fprintf(stderr, "%s: adding phys addr 0x%lX, virt addr %p\n", __func__, mem->phys, mem->virt);
@@ -429,8 +436,10 @@ uiomux_free(struct uiomux *uiomux, uiomux_resource_t blockmask,
 
 		pthread_mutex_lock(&mutex);
 		mem = find_mem_block(&g_mem_regions, address);
-		if (mem)
+		if (mem) {
 			rm_mem_block(&g_mem_regions, mem);
+			free(mem);
+		}
 		pthread_mutex_unlock(&mutex);
 	}
 }
@@ -463,8 +472,10 @@ uiomux_unregister (void *virt)
 
 	pthread_mutex_lock(&mutex);
 	mem = find_mem_block(&g_mem_regions, virt);
-	if (mem)
+	if (mem) {
 		rm_mem_block(&g_mem_regions, mem);
+		free(mem);
+	}
 	pthread_mutex_unlock(&mutex);
 	return (mem == NULL);
 }
