@@ -504,6 +504,9 @@ const char *uiomux_name(uiomux_resource_t block)
 	case UIOMUX_SH_VPU:
 		return "VPU5";
 		break;
+	case UIOMUX_SH_ISP:
+		return "ISP";
+		break;
 	default:
 		return NULL;
 	}

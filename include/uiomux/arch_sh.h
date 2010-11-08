@@ -46,4 +46,7 @@
 /** Video Processing Unit */
 #define UIOMUX_SH_VPU (1<<4)
 
+/** Camera Image Signal Processor */
+#define UIOMUX_SH_ISP (1<<5)
+
 #endif /* __UIOMUX_ARCH_SH_H__ */
