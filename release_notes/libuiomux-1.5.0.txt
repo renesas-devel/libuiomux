@@ -1,0 +1,45 @@
+UIOMux Release 1.5.0
+====================
+
+UIOMux is a conflict manager for system resources, including UIO devices.
+
+The source archive, and more information about the library are available from:
+
+	http://oss.renesas.com/modules/document/?libuiomux
+
+This release of libuiomux targets Renesas SH-Mobile processors.
+
+New in this release
+-------------------
+
+This release adds a function to convert a virtual address to it's corresponding
+physical address. This function covers all memory allocated via UIOMux for the
+current process. Also, new functions have been added to register and unregister
+blocks of memory that can be used by the resources. This allows memory, such as
+the frame buffer, that can be accessed by all resources (e.g. hardware IP blocks)
+to be registered with UIOMux and hence included in the virt to phys address look
+up.
+
+Additonally, a Renesas specific resource has been added for the Camera ISP.
+
+Changes
+-------
+
+This release includes the following changes since version 1.4.0:
+
+Phil Edworthy (4):
+      Merge branch 'userspace_api'
+      Fix mem leak & add checks
+      Add api to register resource accessible memory
+      Add convert virt to phys address fn - doesn't cover framebuffer!
+
+Rumi Kamihoriuchi (1):
+      add Camera ISP(Image Signal Processer) H/W support
+
+ include/uiomux/arch_sh.h        |    3 +
+ include/uiomux/uiomux.h         |   32 ++++++++
+ src/libuiomux/Version_script.in |    3 +
+ src/libuiomux/uiomux.c          |  156 +++++++++++++++++++++++++++++++++++++++
+ src/libuiomux/uiomux_private.h  |    7 ++
+ 5 files changed, 201 insertions(+), 0 deletions(-)
+
