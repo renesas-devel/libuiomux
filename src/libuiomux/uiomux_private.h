@@ -45,6 +45,13 @@ struct uiomux {
   struct uio * uios[UIOMUX_BLOCK_MAX];
 };
 
+struct uiomux_addr_block {
+	void *virt;
+	unsigned long phys;
+	size_t size;
+	struct uiomux_addr_block *next;
+};
+
 /***********************************************************
  * Library-private functions
  */

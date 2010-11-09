@@ -43,9 +43,73 @@ static int init_done = 0;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t uio_mutex[UIOMUX_BLOCK_MAX];
 
+static struct uiomux_addr_block *g_mem_regions = NULL;
+
+/* Simple single list */
+static void add_mem_block(struct uiomux_addr_block **start, struct uiomux_addr_block *new)
+{
+	struct uiomux_addr_block *curr = *start;
+
+	new->next = NULL;
+
+	if (curr == NULL) {
+		*start = new;
+		return;
+	}
+	while (curr->next != NULL)
+		curr = curr->next;
+	curr->next = new;
+}
+
+/* Remove old from the list, doesn't free old */
+static int rm_mem_block(struct uiomux_addr_block **start, struct uiomux_addr_block *old)
+{
+	struct uiomux_addr_block *curr = *start;
+
+	if (curr == NULL)
+		return -1;
+
+	if (curr == old) {
+		*start = curr->next;
+		return 0;
+	}
+	while (curr->next != old)
+		curr = curr->next;
+	curr->next = old->next;
+
+	return 0;
+}
+
+/* Find a mem block */
+static struct uiomux_addr_block *
+find_mem_block(struct uiomux_addr_block **start, void *virt)
+{
+	struct uiomux_addr_block *curr = *start;
+
+	while (curr != NULL) {
+		if ((virt >= curr->virt) && (virt < curr->virt+curr->size))
+			return curr;
+		curr = curr->next;
+	}
+
+	return NULL;
+}
+
+/* Dump all mem blocks */
+static void dump_mem_blocks(struct uiomux_addr_block **start)
+{
+	struct uiomux_addr_block *curr = *start;
+
+	while (curr != NULL) {
+		fprintf(stderr, "virt=%p, phys=0x%lX, size=%d\n", curr->virt, curr->phys, curr->size);
+		curr = curr->next;
+	}
+}
+
 struct uiomux *uiomux_open(void)
 {
 	struct uiomux *uiomux;
+	struct uiomux_addr_block *mem;
 	const char *name = NULL;
 	int i;
 
@@ -79,12 +143,16 @@ static void uiomux_delete(struct uiomux *uiomux)
 	struct uio *uio;
 	int i;
 
+	pthread_mutex_lock(&mutex);
+
 	for (i = 0; i < UIOMUX_BLOCK_MAX; i++) {
 		uio = uiomux->uios[i];
 		if (uio != NULL) {
 			uio_close(uio);
 		}
 	}
+
+	pthread_mutex_unlock(&mutex);
 
 	free(uiomux);
 }
@@ -281,6 +349,7 @@ void *uiomux_malloc(struct uiomux *uiomux, uiomux_resource_t blockmask,
 		    size_t size, int align)
 {
 	struct uio *uio;
+	struct uiomux_addr_block *mem;
 	void *ret = NULL;
 	int i;
 
@@ -295,7 +364,26 @@ void *uiomux_malloc(struct uiomux *uiomux, uiomux_resource_t blockmask,
 		fprintf(stderr, "%s: Allocating %d bytes for block %d\n",
 			__func__, size, i);
 #endif
+		mem = malloc(sizeof(*mem));
+		if (!mem)
+			return NULL;
+
 		ret = uio_malloc(uio, i, size, align, 0);
+
+		if (ret) {
+			mem->virt = ret;
+			mem->phys = uio->mem.address + (ret - uio->mem.iomem);
+			mem->size = size;
+			pthread_mutex_lock(&mutex);
+			add_mem_block(&g_mem_regions, mem);
+			pthread_mutex_unlock(&mutex);
+		} else {
+			free(mem);
+		}
+
+#ifdef DEBUG
+		fprintf(stderr, "%s: adding phys addr 0x%lX, virt addr %p\n", __func__, mem->phys, mem->virt);
+#endif
 	}
 
 	return ret;
@@ -330,6 +418,7 @@ uiomux_free(struct uiomux *uiomux, uiomux_resource_t blockmask,
 	    void *address, size_t size)
 {
 	struct uio *uio;
+	struct uiomux_addr_block *mem;
 	int i;
 
 	/* Invalid if multiple bits are set, or block not found */
@@ -344,7 +433,51 @@ uiomux_free(struct uiomux *uiomux, uiomux_resource_t blockmask,
 			__func__, i);
 #endif
 		uio_free(uio, i, address, size);
+
+		pthread_mutex_lock(&mutex);
+		mem = find_mem_block(&g_mem_regions, address);
+		if (mem) {
+			rm_mem_block(&g_mem_regions, mem);
+			free(mem);
+		}
+		pthread_mutex_unlock(&mutex);
 	}
+}
+
+int
+uiomux_register (void *virt, unsigned long phys, size_t size)
+{
+	struct uiomux_addr_block *mem;
+
+#ifdef DEBUG
+	fprintf(stderr, "%s: phys addr 0x%lX, virt addr %p\n", __func__, phys, virt);
+#endif
+
+	mem = malloc(sizeof(*mem));
+	if (!mem)
+		return 1;
+	mem->virt = virt;
+	mem->phys = phys;
+	mem->size = size;
+	pthread_mutex_lock(&mutex);
+	add_mem_block(&g_mem_regions, mem);
+	pthread_mutex_unlock(&mutex);
+	return 0;
+}
+
+int
+uiomux_unregister (void *virt)
+{
+	struct uiomux_addr_block *mem;
+
+	pthread_mutex_lock(&mutex);
+	mem = find_mem_block(&g_mem_regions, virt);
+	if (mem) {
+		rm_mem_block(&g_mem_regions, mem);
+		free(mem);
+	}
+	pthread_mutex_unlock(&mutex);
+	return (mem == NULL);
 }
 
 unsigned long
@@ -454,6 +587,26 @@ uiomux_virt_to_phys(struct uiomux *uiomux, uiomux_resource_t blockmask,
 
 	return 0;
 }
+
+unsigned long
+uiomux_all_virt_to_phys(void *virt)
+{
+	struct uiomux_addr_block *mem;
+	unsigned long phys = 0;
+
+	pthread_mutex_lock(&mutex);
+	mem = find_mem_block(&g_mem_regions, virt);
+	if (mem)
+		phys = mem->phys + (virt - mem->virt);
+	pthread_mutex_unlock(&mutex);
+
+#ifdef DEBUG
+	fprintf(stderr, "%s: got phys addr 0x%X, virt addr %p\n", __func__, phys, virt);
+#endif
+
+	return phys;
+}
+
 
 void *
 uiomux_phys_to_virt(struct uiomux *uiomux, uiomux_resource_t blockmask,
