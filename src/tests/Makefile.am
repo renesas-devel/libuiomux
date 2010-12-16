@@ -12,7 +12,7 @@ TESTS_ENVIRONMENT = $(VALGRIND_ENVIRONMENT)
 
 test: check
 
-basic_tests = noop double-open multiple-open lock-unlock fork threads fork-threads exit-locked locking wakeup timeout
+basic_tests = noop double-open multiple-open lock-unlock fork threads fork-threads exit-locked locking wakeup timeout named-open
 
 noinst_PROGRAMS = $(basic_tests)
 noinst_HEADERS = uiomux_tests.h
@@ -51,3 +51,6 @@ wakeup_LDADD = $(UIOMUX_LIBS)
 
 timeout_SOURCES = timeout.c
 timeout_LDADD = $(UIOMUX_LIBS)
+
+named_open_SOURCES = named-open.c
+named_open_LDADD = $(UIOMUX_LIBS)

@@ -44,28 +44,28 @@ thread_main (void * arg)
 
   uiomux_lock (uiomux, UIOMUX_SH_BEU);
   snprintf (buf, 256, "BEU Locked by thread %d", threadid);
-  INFO (buf);
+  INFO ("%s", buf);
   uiomux_unlock (uiomux, UIOMUX_SH_BEU);
 
   usleep (7);
 
   uiomux_lock (uiomux, UIOMUX_SH_CEU);
   snprintf (buf, 256, "CEU Locked by thread %d", threadid);
-  INFO (buf);
+  INFO ("%s", buf);
   uiomux_unlock (uiomux, UIOMUX_SH_CEU);
 
   usleep (3);
 
   uiomux_lock (uiomux, UIOMUX_SH_BEU | UIOMUX_SH_VEU);
   snprintf (buf, 256, "BEU and VEU Locked by thread %d", threadid);
-  INFO (buf);
+  INFO ("%s", buf);
   uiomux_unlock (uiomux, UIOMUX_SH_BEU | UIOMUX_SH_VEU);
 
   usleep (1);
 
   uiomux_lock (uiomux, UIOMUX_SH_JPU);
   snprintf (buf, 256, "JPU Locked by thread %d", threadid);
-  INFO (buf);
+  INFO ("%s", buf);
   uiomux_unlock (uiomux, UIOMUX_SH_JPU);
 
   return NULL;
@@ -81,13 +81,13 @@ fork_main (char * who)
   for (i = 0; i < NR_THREADS; i++) {
     nums[i] = i;
     snprintf (buf, 256, "%s creating thread %d", who, i);
-    INFO (buf);
+    INFO ("%s", buf);
     pthread_create (&threads[i], NULL, thread_main, &nums[i]);
   }
 
   for (i = 0; i < NR_THREADS; i++) {
     snprintf (buf, 256, "%s joining thread %d", who, i);
-    INFO (buf);
+    INFO ("%s", buf);
     pthread_join (threads[i], NULL);
   }
 }

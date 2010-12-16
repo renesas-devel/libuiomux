@@ -106,11 +106,10 @@ static void dump_mem_blocks(struct uiomux_addr_block **start)
 	}
 }
 
-struct uiomux *uiomux_open(void)
+struct uiomux *uiomux_open_named(const char * name[])
 {
 	struct uiomux *uiomux;
 	struct uiomux_addr_block *mem;
-	const char *name = NULL;
 	int i;
 
 	pthread_mutex_lock(&mutex);
@@ -130,12 +129,50 @@ struct uiomux *uiomux_open(void)
 
 	/* Open handles to all hardware blocks */
 	for (i = 0; i < UIOMUX_BLOCK_MAX; i++) {
-		if ((name = uiomux_name(1 << i)) != NULL) {
+		if (!name[i])
+			break;
+		uiomux->uios[i] = uio_open(name[i]);
+	}
+
+	return uiomux;
+}
+
+struct uiomux *uiomux_open_blocks(uiomux_resource_t blocks)
+{
+	struct uiomux *uiomux;
+	struct uiomux_addr_block *mem;
+	const char *name = NULL;
+	int i, bit;
+
+	pthread_mutex_lock(&mutex);
+	if (!init_done) {
+		pthread_mutex_t temp_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+		for (i = 0; i < UIOMUX_BLOCK_MAX; i++)
+			memcpy(&uio_mutex[i], &temp_mutex, sizeof(temp_mutex));
+
+		init_done = 1;
+	}
+	pthread_mutex_unlock(&mutex);
+
+	uiomux = (struct uiomux *) calloc(1, sizeof(*uiomux));
+	if (!uiomux)
+		return NULL;
+
+	/* Open handles to all hardware blocks */
+	for (i = 0; i < UIOMUX_BLOCK_MAX; i++) {
+		bit = 1 << i;
+		if ((blocks & bit) && (name = uiomux_name(bit)) != NULL) {
 			uiomux->uios[i] = uio_open(name);
 		}
 	}
 
 	return uiomux;
+}
+
+struct uiomux *uiomux_open(void)
+{
+	return uiomux_open_blocks(UIOMUX_ALL);
 }
 
 static void uiomux_delete(struct uiomux *uiomux)
@@ -212,6 +249,7 @@ int uiomux_lock(struct uiomux *uiomux, uiomux_resource_t blockmask)
 				perror("flock failed");
 				goto undo_locks;
 			}
+
 			uiomux->locked_resources |= 1U << i;
 			uio_read_nonblocking(uio);
 		}
@@ -686,9 +724,7 @@ uiomux_resource_t uiomux_query(void)
 
 static int uiomux_showversion(struct uiomux *uiomux)
 {
-	printf("uiomux\n" VERSION);
-	fflush(stdout);
-
+	printf("uiomux " VERSION "\n");
 	return 0;
 }
 
@@ -742,4 +778,39 @@ int uiomux_meminfo(struct uiomux *uiomux)
 	}
 
 	return 0;
+}
+
+int uiomux_list_device(char ***names, int *count)
+{
+	return uio_list_device(names, count);
+}
+
+uiomux_resource_t
+uiomux_check_resource(struct uiomux *uiomux, uiomux_resource_t blocks)
+{
+	int i, bitmask;
+	uiomux_resource_t ret = 0;
+
+	for (i = 0; i < UIOMUX_BLOCK_MAX; i++) {
+		bitmask = 1 << i;
+		if ((bitmask & blocks) && (uiomux->uios[i]))
+			ret |= bitmask;
+	}
+
+	return ret;
+}
+
+char * uiomux_check_name(struct uiomux *uiomux, uiomux_resource_t blocks)
+{
+	int i;
+	struct uio *uio;
+	uiomux_resource_t ret = 0;
+
+	for (i = 0; i < UIOMUX_BLOCK_MAX; i++) {
+		uio = uiomux->uios[i];
+		if (((1 << i) & blocks) && (uio))
+			return uio->dev.name;
+	}
+
+	return NULL;
 }

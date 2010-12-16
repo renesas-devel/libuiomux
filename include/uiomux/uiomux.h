@@ -169,6 +169,14 @@ uiomux_query(void);
 const char * uiomux_name(uiomux_resource_t resource);
 
 /**
+ * Query which blocks are available on this platform.
+ * \param names List of IP blocks available
+ * \param count Number of IP blocks
+ * \retval 0 on succes; -1 on failure
+ */
+int uiomux_list_device(char ***names, int *count);
+
+/**
  * Print info about UIO maps to stdout
  * \param uiomux A UIOMux handle
  * \retval 0 Success
@@ -193,12 +201,55 @@ UIOMux *
 uiomux_open (void);
 
 /**
+ * Create a new UIOMux object for specified IP blocks,
+ * \param resources A named resource, or multiple OR'd together
+ * \retval NULL on system error; check errno for details.
+ */
+UIOMux *
+uiomux_open_blocks(uiomux_resource_t resources);
+
+/**
+ * Create a new UIOMux object for named IP blocks,
+ * When UIOMux object is created with this function, each bit in
+ * \c uiomux_resource_t refer to the corresponding element in the list.
+ * For instance, \c name[n] is refered with the bit \c (1 << n).
+ * \param name A list of IP block names. List shall be terminated with
+ * NULL pointer.
+ * \retval NULL on system error; check errno for details.
+ */
+UIOMux *
+uiomux_open_named(const char *name[]);
+
+/**
  * Close a UIOMux handle, removing exclusive access, removing memory maps, etc.
  * \param uiomux A UIOMux handle
  * \retval 0 Success
  */
 int
 uiomux_close (UIOMux * uiomux);
+
+/**
+ * Check if passed resource is available on the UIOMux object.
+ * The function can be used to test if intended IP blocks are
+ * made available.
+ * \param uiomux A UIOMux handle
+ * \param resource Multiple OR'd resource list. When UIOMux handle is create
+ * with \c uiomux_open_named(), this depends on the list of \c name passed to
+ * the function. See \ref uiomux_open_named() for details.
+ * \retval Or'd named resources; bits are set for resources available.
+ */
+uiomux_resource_t
+uiomux_check_resource(struct uiomux *uiomux, uiomux_resource_t resource);
+
+/**
+ * Check the name of the IP block corrensponding to the passed resource identifier.
+ * \param uiomux A UIOMux handle
+ * \param resource Resource identifer.
+ * \retval Name of the IP block; when multiple bits are set \c resource, the
+ * information on those corresponding to the only lesser significant bit is
+ * returned.
+ */
+char *uiomux_check_name(struct uiomux *uiomux, uiomux_resource_t resource);
 
 /**
  * Lock a UIOMux handle for access to specified blocks.

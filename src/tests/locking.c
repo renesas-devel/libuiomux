@@ -48,7 +48,7 @@ thread_main (void * arg)
 	usleep (rand() % 10);
 
 	snprintf (buf, 256, "Opening UIOMux for thread %d", threadid);
-	INFO (buf);
+	INFO ("%s", buf);
 	uiomux = uiomux_open();
 	if (uiomux == NULL)
 		return (void*) -1;
@@ -70,7 +70,7 @@ thread_main (void * arg)
 	}
 
 	snprintf (buf, 256, "Closing UIOMux for thread %d", threadid);
-	INFO (buf);
+	INFO ("%s", buf);
 	ret = uiomux_close(uiomux);
 	if (ret != 0)
 		return (void*) -1;
@@ -89,13 +89,13 @@ main (int argc, char *argv[])
 	for (i = 0; i < NR_THREADS; i++) {
 		nums[i] = i;
 		snprintf (buf, 256, "Creating thread %d", i);
-		INFO (buf);
+		INFO ("%s", buf);
 		pthread_create (&threads[i], NULL, thread_main, &nums[i]);
 	}
 
 	for (i = 0; i < NR_THREADS; i++) {
 		snprintf (buf, 256, "Joining thread %d", i);
-		INFO (buf);
+		INFO ("%s", buf);
 		pthread_join (threads[i], (void*)&ret);
 		if (ret != 0)
 			FAIL ("Locking failed");

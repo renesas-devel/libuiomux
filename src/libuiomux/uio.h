@@ -63,4 +63,7 @@ uio_free (struct uio * uio, int resid, void * address, size_t size);
 void
 uio_meminfo (struct uio * uio);
 
+int
+uio_list_device (char *** names, int * count);
+
 #endif /* __UIOMUX_UIO_H__ */

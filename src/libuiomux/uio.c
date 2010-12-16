@@ -159,6 +159,36 @@ static int locate_uio_device(const char *name, struct uio_device *udp)
 	return 0;
 }
 
+int uio_list_device(char ***names, int *n)
+{
+	struct uio_device *list;
+	int i, count;
+	char **_names;
+
+	/* get list of UIO devices */
+	if (get_uio_device_list(&list, &count) < 0)
+		return -1;
+
+	_names = (char **)calloc(1, sizeof(char*) * (count + 1));
+	if (!_names)
+		return -1;
+
+	for (i = 0; i < count; i++) {
+		_names[i] = strdup(list[i].name);
+		if (!_names[i]) {
+			while (--i >= 0)
+				free(_names[i]);
+			free(_names);
+			return -1;
+		}
+	}
+
+	*n = count;
+	*names = _names;
+
+	return 0;
+}
+
 static int setup_uio_map(struct uio_device *udp, int nr,
 			 struct uio_map *ump)
 {

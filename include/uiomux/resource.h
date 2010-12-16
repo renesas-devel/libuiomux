@@ -36,6 +36,9 @@ typedef int uiomux_resource_t;
 /** Specifies that no resources are selected */
 #define UIOMUX_NONE 0
 
+/** Specifies that all resources are selected */
+#define UIOMUX_ALL (~0)
+
 #include <uiomux/arch_sh.h>
 
 #endif /* __UIOMUX_RESOURCE_H__ */
