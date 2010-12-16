@@ -164,6 +164,8 @@ static int setup_uio_map(struct uio_device *udp, int nr,
 {
 	char fname[MAXNAMELEN], buf[MAXNAMELEN];
 
+	ump->iomem = NULL;
+
 	sprintf(fname, "%s/maps/map%d/addr", udp->path, nr);
 	if (fgets_with_openclose(fname, buf, MAXNAMELEN) <= 0)
 		return -1;
@@ -252,11 +254,8 @@ struct uio *uio_open(const char *name)
 		return NULL;
 	}
 
+	/* contiguous memory may not be available */
 	ret = setup_uio_map(&uio->dev, 1, &uio->mem);
-	if (ret < 0) {
-		uio_close(uio);
-		return NULL;
-	}
 
 	pipe(uio->exit_sleep_pipe);
 
