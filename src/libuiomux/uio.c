@@ -29,11 +29,13 @@
 #include <string.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <dirent.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/time.h>
+#include <sys/param.h>
 
 #include "uio.h"
 
@@ -53,30 +55,99 @@ static int fgets_with_openclose(char *fname, char *buf, size_t maxlen)
 	}
 }
 
-
-#define MAXUIOIDS  100
 #define MAXNAMELEN 256
+
+static int get_uio_device_list(struct uio_device **list, int *count)
+{
+	static int uio_device_count = -1;
+	static struct uio_device *uio_device;
+	struct dirent **namelist;
+	static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+	int n, i;
+	char buf[MAXNAMELEN], path[MAXPATHLEN];
+
+	pthread_mutex_lock(&lock);
+
+	/* do we already know all available UIOs? */
+	if (uio_device_count != -1) {
+		*list  = uio_device;
+		*count = uio_device_count;
+		pthread_mutex_unlock(&lock);
+		return 0;
+	}
+
+	n = scandir("/sys/class/uio", &namelist, 0, alphasort);
+	if (n < 3) {
+		/* no UIO  - we must have at least 3 entries. */
+		goto unlock;
+	}
+
+	/* alloc memory */
+	uio_device = calloc(1, sizeof(struct uio_device) * (n - 2));
+	if (!uio_device) {
+		/* no memory */
+		goto unlock;
+	}
+	uio_device_count = 0;
+
+	for (i = 0; i < n; i++) {
+		if (strncmp(namelist[i]->d_name, "uio", 3) != 0)
+			continue;
+
+		snprintf(path, MAXPATHLEN, "/sys/class/uio/%s/name",
+			 namelist[i]->d_name);
+
+		if (fgets_with_openclose(path, buf, MAXNAMELEN) < 0)
+			goto err;
+
+		path[strlen(path) - 4] = '\0';
+		uio_device[uio_device_count].path = strdup(path);
+		uio_device[uio_device_count].name = strdup(buf);
+		uio_device_count++;
+	}
+
+	*list  = uio_device;
+	*count = uio_device_count;
+
+	pthread_mutex_unlock(&lock);
+
+	return 0;
+err:
+	for (i = 0; i < uio_device_count; i++) {
+		free(uio_device[i].name);
+		free(uio_device[i].path);
+	}
+	free(uio_device);
+	uio_device = NULL;
+	uio_device_count = -1;
+
+unlock:
+	pthread_mutex_unlock(&lock);
+	return -1;
+}
 
 static int locate_uio_device(const char *name, struct uio_device *udp)
 {
-	char fname[MAXNAMELEN], buf[MAXNAMELEN];
-	int uio_id, i;
+	struct uio_device *list;
+	int uio_id, i, count;
+	char buf[MAXNAMELEN];
 
-	for (uio_id = 0; uio_id < MAXUIOIDS; uio_id++) {
-		sprintf(fname, "/sys/class/uio/uio%d/name", uio_id);
-		if (fgets_with_openclose(fname, buf, MAXNAMELEN) < 0)
-			continue;
-		if (strncmp(name, buf, strlen(name)) == 0)
+	/* get list of UIO devices */
+	if (get_uio_device_list(&list, &count) < 0)
+		return -1;
+
+	for (i = 0; i < count; i++) {
+		if (strncmp(name, list[i].name, strlen(name)) == 0)
 			break;
 	}
 
-	if (uio_id >= MAXUIOIDS)
+	if (i >= count)
 		return -1;
 
-	udp->name = strdup(buf);
-	udp->path = strdup(fname);
-	udp->path[strlen(udp->path) - 4] = '\0';
+	udp->name = list[i].name;
+	udp->path = list[i].path;
 
+	sscanf(udp->path, "/sys/class/uio/uio%i", &uio_id);
 	sprintf(buf, "/dev/uio%d", uio_id);
 	udp->fd = open(buf, O_RDWR | O_SYNC /*| O_NONBLOCK */ );
 
