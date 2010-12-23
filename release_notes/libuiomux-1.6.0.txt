@@ -1,0 +1,49 @@
+UIOMux Release 1.6.0
+====================
+
+UIOMux is a conflict manager for system resources, including UIO devices.
+
+The source archive, and more information about the library are available from:
+
+	http://oss.renesas.com/modules/document/?libuiomux
+
+This release of libuiomux targets Renesas SH-Mobile processors.
+
+New in this release
+-------------------
+
+This release adds functions to list all resource names and allow the client to
+open a named resource. This allows UIOMux to open specific hardware resources
+that were previously inaccessible (e.g. a second VEU). With the complications
+of multiple similar resources whose capabilites differ only in performance or
+supported sizes, it was felt that explicit control over access to the resource
+is best.
+
+Changes
+-------
+
+This release includes the following changes since version 1.5.0:
+
+Takanari Hayama (4):
+      New API to open IP blocks only those specified by callers explicitly.
+      support up to 64MB UIO memory.
+      Support resources that only need registers mapped.
+      use directory listing and cache results when scanning /sys/class/uio/.
+
+Phil Edworthy (1):
+      docs: Fix doxygen comments for API
+
+ include/uiomux/resource.h |    3 +
+ include/uiomux/uiomux.h   |   61 +++++++++++++++++++-
+ src/libuiomux/uio.c       |  134 +++++++++++++++++++++++++++++++++++++++------
+ src/libuiomux/uio.h       |    5 +-
+ src/libuiomux/uiomux.c    |   83 ++++++++++++++++++++++++++--
+ src/tests/Makefile.am     |    5 +-
+ src/tests/fork-threads.c  |   12 ++--
+ src/tests/locking.c       |    8 +-
+ src/tests/named-open.c    |   82 +++++++++++++++++++++++++++
+ src/tests/threads.c       |   12 ++--
+ src/tests/uiomux_tests.h  |   12 ++--
+ 11 files changed, 367 insertions(+), 50 deletions(-)
+ create mode 100644 src/tests/named-open.c
+
