@@ -272,7 +272,7 @@ uiomux_unlock (UIOMux * uiomux, uiomux_resource_t resources);
 /**
  * Wait for a UIO managed resource to complete its activity.
  * \param uiomux A UIOMux handle
- * \param resources A named resource
+ * \param resource A named resource
  * \retval 0 Success
  */
 int
@@ -342,7 +342,7 @@ uiomux_get_mem (UIOMux * uiomux, uiomux_resource_t resource,
  *           or virtual address is not in range mapped for given resource.
  */
 unsigned long
-uiomux_virt_to_phys (UIOMux * uiomux, uiomux_resource_t blockmask,
+uiomux_virt_to_phys (UIOMux * uiomux, uiomux_resource_t resource,
                      void * virt_address);
 
 /**
@@ -364,13 +364,15 @@ uiomux_all_virt_to_phys (void * virt_address);
  *              or physical address is not in range mapped for given resource.
  */
 void *
-uiomux_phys_to_virt(UIOMux * uiomux, uiomux_resource_t blockmask,
+uiomux_phys_to_virt(UIOMux * uiomux, uiomux_resource_t resource,
 		    unsigned long phys_address);
 
 /**
  * Allocate iomem from a UIO managed resource.
  * \param uiomux A UIOMux handle
  * \param resource A single named resource
+ * \param size Size of memory region
+ * \param align Alignment of memory region
  * \returns Address of allocated memory
  * \retval NULL Failure: unable to allocate, or attempt to allocate
  * from more than one resource.
@@ -384,6 +386,8 @@ uiomux_malloc (UIOMux * uiomux, uiomux_resource_t resource,
  * memory region for a UIO device.
  * \param uiomux A UIOMux handle
  * \param resource A single named resource
+ * \param size Size of memory region
+ * \param align Alignment of memory region
  * \returns Address of allocated memory
  * \retval NULL Failure: unable to allocate, or attempt to allocate
  * from more than one resource.
