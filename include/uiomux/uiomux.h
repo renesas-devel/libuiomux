@@ -170,9 +170,13 @@ const char * uiomux_name(uiomux_resource_t resource);
 
 /**
  * Query which blocks are available on this platform.
- * \param names List of IP blocks available
- * \param count Number of IP blocks
- * \retval 0 on succes; -1 on failure
+ * Returns the references to the names of IP avialable IP blocks.
+ * If you need to modify the returned array of strings, please copy the array
+ * and strings before you do so. The result is shared by all callers of this
+ * API in the same process context.
+ * \param names List of IP blocks available. The array is terminated with NULL.
+ * \param count Number of IP blocks.
+ * \retval 0 on success; -1 on failure.
  */
 int uiomux_list_device(char ***names, int *count);
 

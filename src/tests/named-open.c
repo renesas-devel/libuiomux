@@ -42,7 +42,7 @@ main (int argc, char *argv[])
 {
 	UIOMux *uiomux;
 	int i, ret, count;
-	char **name;
+	char **name, **name2;
 	uiomux_resource_t val;
 
 	INFO("List available devices");
@@ -50,6 +50,11 @@ main (int argc, char *argv[])
 
 	for (i = 0; i < count; i++)
 		printf(name[i]);
+
+	uiomux_list_device(&name2, &count);
+
+	INFO("1st uiomux_list_device() returned %08x\n", name);
+	INFO("2nd uiomux_list_device() returned %08x\n", name2);
 
 	INFO("Opening UIOMux");
 	i = 0;
@@ -67,7 +72,7 @@ main (int argc, char *argv[])
 	INFO("Check names of given UIOs");
 	for (i = 0; i < 16; i++) {
 		if (val & (1 << i))
-			INFO("%s", uiomux_check_name(uiomux, 1 << i));
+			printf("%s", uiomux_check_name(uiomux, 1 << i));
 	}
 
 	INFO("Calling UIOMux info");

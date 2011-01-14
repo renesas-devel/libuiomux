@@ -60,11 +60,11 @@ static int fgets_with_openclose(char *fname, char *buf, size_t maxlen)
 static int get_uio_device_list(struct uio_device **list, int *count)
 {
 	static int uio_device_count = -1;
-	static struct uio_device *uio_device;
+	static struct uio_device uio_device[UIO_DEVICE_MAX];
 	struct dirent **namelist;
 	static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-	int n, i;
-	char buf[MAXNAMELEN], path[MAXPATHLEN];
+	int n, i, len;
+	char path[MAXPATHLEN];
 
 	pthread_mutex_lock(&lock);
 
@@ -82,14 +82,7 @@ static int get_uio_device_list(struct uio_device **list, int *count)
 		goto unlock;
 	}
 
-	/* alloc memory */
-	uio_device = calloc(1, sizeof(struct uio_device) * (n - 2));
-	if (!uio_device) {
-		/* no memory */
-		goto unlock;
-	}
 	uio_device_count = 0;
-
 	for (i = 0; i < n; i++) {
 		if (strncmp(namelist[i]->d_name, "uio", 3) != 0)
 			continue;
@@ -97,12 +90,16 @@ static int get_uio_device_list(struct uio_device **list, int *count)
 		snprintf(path, MAXPATHLEN, "/sys/class/uio/%s/name",
 			 namelist[i]->d_name);
 
-		if (fgets_with_openclose(path, buf, MAXNAMELEN) < 0)
+		if (strlen(path) - 3 > UIO_DEVICE_PATH_MAX)
+			goto err;
+
+		if (fgets_with_openclose(path,
+					 uio_device[uio_device_count].name,
+					 UIO_DEVICE_NAME_MAX) < 0)
 			goto err;
 
 		path[strlen(path) - 4] = '\0';
-		uio_device[uio_device_count].path = strdup(path);
-		uio_device[uio_device_count].name = strdup(buf);
+		strcpy(uio_device[uio_device_count].path, path);
 		uio_device_count++;
 	}
 
@@ -113,12 +110,7 @@ static int get_uio_device_list(struct uio_device **list, int *count)
 
 	return 0;
 err:
-	for (i = 0; i < uio_device_count; i++) {
-		free(uio_device[i].name);
-		free(uio_device[i].path);
-	}
-	free(uio_device);
-	uio_device = NULL;
+	memset(&uio_device, 0, sizeof(uio_device));
 	uio_device_count = -1;
 
 unlock:
@@ -144,8 +136,8 @@ static int locate_uio_device(const char *name, struct uio_device *udp)
 	if (i >= count)
 		return -1;
 
-	udp->name = list[i].name;
-	udp->path = list[i].path;
+	strncpy(udp->name, list[i].name, UIO_DEVICE_NAME_MAX);
+	strncpy(udp->path, list[i].path, UIO_DEVICE_PATH_MAX);
 
 	sscanf(udp->path, "/sys/class/uio/uio%i", &uio_id);
 	sprintf(buf, "/dev/uio%d", uio_id);
@@ -162,29 +154,32 @@ static int locate_uio_device(const char *name, struct uio_device *udp)
 int uio_list_device(char ***names, int *n)
 {
 	struct uio_device *list;
-	int i, count;
-	char **_names;
+	int i;
+	static char *_names[UIO_DEVICE_MAX + 1];
+	static int count = -1;
+	static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+
+	pthread_mutex_lock(&lock);
+	if (count != -1) {
+		*n = count;
+		*names = _names;
+		pthread_mutex_unlock(&lock);
+		return 0;
+	}
 
 	/* get list of UIO devices */
-	if (get_uio_device_list(&list, &count) < 0)
+	if (get_uio_device_list(&list, &count) < 0) {
+		pthread_mutex_unlock(&lock);
 		return -1;
-
-	_names = (char **)calloc(1, sizeof(char*) * (count + 1));
-	if (!_names)
-		return -1;
-
-	for (i = 0; i < count; i++) {
-		_names[i] = strdup(list[i].name);
-		if (!_names[i]) {
-			while (--i >= 0)
-				free(_names[i]);
-			free(_names);
-			return -1;
-		}
 	}
+
+	memset(_names, 0, sizeof(_names));
+	for (i = 0; i < count; i++)
+		_names[i] = list[i].name;
 
 	*n = count;
 	*names = _names;
+	pthread_mutex_unlock(&lock);
 
 	return 0;
 }
@@ -245,10 +240,6 @@ int uio_close(struct uio *uio)
 
 	if (uio->dev.fd > 0)
 		close(uio->dev.fd);
-	if (uio->dev.path)
-		free(uio->dev.path);
-	if (uio->dev.name)
-		free(uio->dev.name);
 
 	if (uio->exit_sleep_pipe[0] > 0) {
 		close(uio->exit_sleep_pipe[0]);

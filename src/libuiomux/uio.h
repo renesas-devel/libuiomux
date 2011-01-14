@@ -23,9 +23,16 @@
 #define UIO_DEVICE_MAX		16
 #define UIO_BUFFER_MAX		(64 * 1024 * 1024) /* 64MB, depends on
 						      get_free_pages() */
+
+/* max length of UIO names found in /sys/class/uio/uioNN/name */
+#define UIO_DEVICE_NAME_MAX    32
+
+/* max path length of UIO directories /sys/class/uio/uioNN */
+#define UIO_DEVICE_PATH_MAX    32
+
 struct uio_device {
-  char *name;
-  char *path;
+  char name[UIO_DEVICE_NAME_MAX];
+  char path[UIO_DEVICE_PATH_MAX];
   int fd;
 };
 
