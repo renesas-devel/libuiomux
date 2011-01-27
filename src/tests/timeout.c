@@ -38,7 +38,6 @@ main() {
 	void *veu_register_base;
 	unsigned long veu_phys_memory_base;
 	int i;
-	pthread_t tid;
 	struct timeval tval;
 	
 	tval.tv_sec = 5;
