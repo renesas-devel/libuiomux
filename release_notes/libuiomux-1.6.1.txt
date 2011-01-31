@@ -1,0 +1,34 @@
+UIOMux Release 1.6.1
+====================
+
+UIOMux is a conflict manager for system resources, including UIO devices.
+
+The source archive, and more information about the library are available from:
+
+	http://oss.renesas.com/modules/document/?libuiomux
+
+This release of libuiomux targets Renesas SH-Mobile processors.
+
+New in this release
+-------------------
+
+This release uses static storage to cache the UIO device list.
+
+Changes
+-------
+
+This release includes the following changes since version 1.6.0:
+
+Takanari Hayama (1):
+      fix: allocates UIO device list cache statically.
+
+Phil Edworthy (1):
+      Tests: Remove unused code that required header that wasn't included
+
+ include/uiomux/uiomux.h |   10 ++++--
+ src/libuiomux/uio.c     |   73 ++++++++++++++++++++--------------------------
+ src/libuiomux/uio.h     |   11 ++++++-
+ src/tests/named-open.c  |    9 ++++-
+ src/tests/timeout.c     |    1 -
+ 5 files changed, 55 insertions(+), 49 deletions(-)
+
