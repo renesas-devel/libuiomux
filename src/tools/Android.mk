@@ -7,4 +7,5 @@ LOCAL_CFLAGS := -DVERSION=\"1.0.0\"
 LOCAL_SRC_FILES := uiomux.c uiomux-alloc.c
 LOCAL_SHARED_LIBRARIES := libuiomux
 LOCAL_MODULE := uiomux
+LOCAL_MODULE_TAGS := optional
 include $(BUILD_EXECUTABLE)
