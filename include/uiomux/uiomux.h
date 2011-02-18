@@ -22,6 +22,7 @@
 
 #include <stdlib.h>
 #include <uiomux/resource.h>
+#include <sys/time.h>
 
 #ifdef __cplusplus
 extern "C" {

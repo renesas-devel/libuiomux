@@ -34,7 +34,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
-#include <sys/time.h>
 #include <sys/param.h>
 
 #include "uio.h"
