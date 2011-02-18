@@ -118,7 +118,7 @@ unlock:
 	return -1;
 }
 
-static int locate_uio_device(const char *name, struct uio_device *udp)
+static int locate_uio_device(const char *name, struct uio_device *udp, int *device_index)
 {
 	struct uio_device *list;
 	int uio_id, i, count;
@@ -147,6 +147,8 @@ static int locate_uio_device(const char *name, struct uio_device *udp)
 		perror("open");
 		return -1;
 	}
+
+	*device_index = i;
 
 	return 0;
 }
@@ -182,6 +184,14 @@ int uio_list_device(char ***names, int *n)
 	pthread_mutex_unlock(&lock);
 
 	return 0;
+}
+
+int uio_device_index (struct uio * uio)
+{
+	if (!uio)
+		return -1;
+
+	return uio->device_index;
 }
 
 static int setup_uio_map(struct uio_device *udp, int nr,
@@ -259,7 +269,7 @@ struct uio *uio_open(const char *name)
 	if (uio == NULL)
 		return NULL;
 
-	ret = locate_uio_device(name, &uio->dev);
+	ret = locate_uio_device(name, &uio->dev, &uio->device_index);
 	if (ret < 0) {
 		uio_close(uio);
 		return NULL;

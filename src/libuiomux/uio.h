@@ -47,6 +47,7 @@ struct uio {
   struct uio_map mmio;
   struct uio_map mem;
   int exit_sleep_pipe[2];
+  int device_index;
 };
 
 struct uio *
@@ -72,5 +73,8 @@ uio_meminfo (struct uio * uio);
 
 int
 uio_list_device (char *** names, int * count);
+
+int
+uio_device_index (struct uio * uio);
 
 #endif /* __UIOMUX_UIO_H__ */

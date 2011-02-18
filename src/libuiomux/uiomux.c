@@ -229,6 +229,7 @@ int uiomux_lock(struct uiomux *uiomux, uiomux_resource_t blockmask)
 
 	for (i = 0; i < UIOMUX_BLOCK_MAX; i++) {
 		if (blockmask & (1 << i)) {
+
 			uio = uiomux->uios[i];
 			if (!uio) {
 				fprintf(stderr, "No uio exists.\n");
@@ -238,7 +239,7 @@ int uiomux_lock(struct uiomux *uiomux, uiomux_resource_t blockmask)
 			/* Lock uio within this process. This is required because the
 			   fcntl()'s advisory lock is only valid between processes, not
 			   within a process. */
-			ret = pthread_mutex_lock(&uio_mutex[i]);
+			ret = pthread_mutex_lock(&uio_mutex[uio_device_index(uio)]);
 			if (ret != 0) {
 				perror("pthread_mutex_lock failed");
 				goto undo_locks;
@@ -281,7 +282,7 @@ int uiomux_unlock(struct uiomux *uiomux, uiomux_resource_t blockmask)
 				if (ret < 0)
 					perror("flock failed");
 
-				ret = pthread_mutex_unlock(&uio_mutex[i]);
+				ret = pthread_mutex_unlock(&uio_mutex[uio_device_index(uio)]);
 				if (ret != 0)
 					perror("pthread_mutex_unlock failed");
 			}
