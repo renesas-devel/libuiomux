@@ -482,7 +482,7 @@ static int uio_mem_free(int fd, int res, int offset, int count)
 	return ret;
 }
 
-void *uio_malloc(struct uio *uio, int resid, size_t size, int align, int shared)
+void *uio_malloc(struct uio *uio, size_t size, int align, int shared)
 {
 	unsigned char * mem_base;
 	int pagesize, pages_req, pages_max;
@@ -500,10 +500,10 @@ void *uio_malloc(struct uio *uio, int resid, size_t size, int align, int shared)
 	pages_max = (uio->mem.size + pagesize - 1) / pagesize;
 	pages_req = (size + pagesize - 1) / pagesize;
 
-	if ((base = uio_mem_find(uio->dev.fd, resid,
+	if ((base = uio_mem_find(uio->dev.fd, uio->device_index,
 				 pages_max, pages_req, shared)) == -1)
 		return NULL;
-	uio_mem_alloc(uio->dev.fd, resid, base, pages_req, shared);
+	uio_mem_alloc(uio->dev.fd, uio->device_index, base, pages_req, shared);
 
 	mem_base = (void *)
 		((unsigned long)uio->mem.iomem + (base * pagesize));
@@ -511,7 +511,7 @@ void *uio_malloc(struct uio *uio, int resid, size_t size, int align, int shared)
 	return mem_base;
 }
 
-void uio_free(struct uio *uio, int resid, void *address, size_t size)
+void uio_free(struct uio *uio, void *address, size_t size)
 {
 	int pagesize, base, pages_req;
 
@@ -520,7 +520,7 @@ void uio_free(struct uio *uio, int resid, void *address, size_t size)
 	base = (int)(((unsigned long)address -
 		      (unsigned long)uio->mem.iomem) / pagesize);
 	pages_req = (size + pagesize - 1) / pagesize;
-	uio_mem_free(uio->dev.fd, resid, base, pages_req);
+	uio_mem_free(uio->dev.fd, uio->device_index, base, pages_req);
 }
 
 static void print_usage(int pid, long base, long top)
