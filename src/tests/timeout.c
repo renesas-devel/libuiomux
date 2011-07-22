@@ -39,7 +39,7 @@ main() {
 	unsigned long veu_phys_memory_base;
 	int i;
 	struct timeval tval;
-	
+
 	tval.tv_sec = 5;
 	tval.tv_usec = 0;
 
@@ -48,7 +48,7 @@ main() {
 
 	if (uiomux == NULL)
 		FAIL ("Opening UIOMux");
-	
+
 	INFO ("uiomux_sleep-ing with a timeout of 5 secs");
 	if (uiomux_sleep_timeout(uiomux, UIOMUX_SH_VEU, &tval) < 0) {
 		INFO ("Woken up after timeout (or other error)");

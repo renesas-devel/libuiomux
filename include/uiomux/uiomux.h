@@ -38,7 +38,7 @@ extern "C" {
  * containing mutexes for each managed resource. This segment and its mutexes
  * are shared amongst all processes and threads on the system, to provide
  * system-wide locking. In this way, libuiomux can be used to manage
- * contention across multiple simultaneous processes and threads.  
+ * contention across multiple simultaneous processes and threads.
  *
  * UIOMux allows simultaneous locking of access to multiple resources, with
  * deterministic locking and unlocking order to avoid circular waiting.
@@ -55,9 +55,9 @@ extern "C" {
  * of similar processors. An application can fall back to software if a
  * required hardware resource is not available, or disable relevant
  * funtionality at runtime.
- * 
+ *
  * \subsection contents Contents
- * 
+ *
  * - \link uiomux.h uiomux.h \endlink:
  * Documentation of the UIOMux C API
  *
@@ -66,7 +66,7 @@ extern "C" {
  *
  * - \link building Building \endlink:
  * Building applications against libuiomux
- * 
+ *
  */
 
 /** \defgroup configuration Configuration
@@ -128,7 +128,7 @@ extern "C" {
  * \section query Query
  *
  * At any time, an application may retrieve a printable name for a resource
- * by calling uiomux_name(). 
+ * by calling uiomux_name().
  * To query which resources are available on the running system, call
  * uiomux_query().
  *
@@ -199,7 +199,7 @@ uiomux_meminfo (UIOMux * uiomux);
 
 /**
  * Create a new UIOMux object,
- * 
+ *
  * \retval NULL on system error; check errno for details.
  */
 UIOMux *
@@ -443,4 +443,3 @@ uiomux_unregister (void *virt);
 #endif
 
 #endif /* __UIOMUX_H__ */
-

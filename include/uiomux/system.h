@@ -60,4 +60,3 @@ uiomux_system_destroy (UIOMux * uiomux);
 #endif
 
 #endif /* __UIOMUX_SYSTEM_H__ */
-

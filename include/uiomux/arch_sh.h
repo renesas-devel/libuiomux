@@ -22,7 +22,7 @@
 
 /** \file
  * UIOMux resource identifiers for SuperH Mobile.
- * 
+ *
  * IP blocks are accessed by symbolic name.
  */
 

@@ -22,7 +22,7 @@
 
 /** \file
  * UIOMux resource type.
- * 
+ *
  * IP blocks are accessed by symbolic name.
  * This file includes architecture-specific resource names.
  */

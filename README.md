@@ -67,14 +67,14 @@ Commandline tool
 ----------------
 
     Usage: uiomux <command>
-    
+
     uiomux is a tool for querying UIO and managing the UIOMux state.
-    
+
     Reporting:
       query       List available UIO device names that can be managed by UIOMux.
       info        Show memory layout of each UIO device managed by UIOMux.
       meminfo     Show memory allocations of each UIO device managed by UIOMux.
-    
+
     Management:
       reset       Reset the UIOMux system. This initializes the UIOMux shared state,
                   including all shared mutexes, and scans UIO memory maps.
