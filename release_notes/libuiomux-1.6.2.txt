@@ -1,0 +1,44 @@
+UIOMux Release 1.6.2
+====================
+
+UIOMux is a conflict manager for system resources, including UIO devices.
+
+The source archive, and more information about the library are available from:
+
+	http://oss.renesas.com/modules/document/?libuiomux
+
+This release of libuiomux targets Renesas SH-Mobile processors.
+
+New in this release
+-------------------
+
+This release uses static storage to cache the UIO device list.
+
+Changes
+-------
+
+This release includes the following changes since version 1.6.1:
+
+Damian Hobson-Garcia (3):
+      Use uio device_index instead of resid to access memory allocation map
+      Android: Add new LOCAL_MODULE_TAGS variable required by gingerbread
+      fix: include for <sys/time> should be done in uiomux.h not uio.c
+
+Phil Edworthy (2):
+      cosmetic: Remove trailing whitespace
+      Fix named resource blocking within the same process.
+
+ README.md                 |    6 +++---
+ include/uiomux/arch_sh.h  |    2 +-
+ include/uiomux/resource.h |    2 +-
+ include/uiomux/system.h   |    1 -
+ include/uiomux/uiomux.h   |   14 +++++++-------
+ src/libuiomux/Android.mk  |    1 +
+ src/libuiomux/uio.c       |   25 +++++++++++++++++--------
+ src/libuiomux/uio.h       |    8 ++++++--
+ src/libuiomux/uiomux.c    |   11 ++++++-----
+ src/tests/Android.mk      |   10 ++++++++++
+ src/tests/timeout.c       |    4 ++--
+ src/tools/Android.mk      |    1 +
+ 12 files changed, 55 insertions(+), 30 deletions(-)
+
