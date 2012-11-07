@@ -65,6 +65,9 @@ uio_read_nonblocking(struct uio *uio);
 void *
 uio_malloc (struct uio * uio, size_t size, int align, int shared);
 
+int
+uio_mlock(struct uio *uio, void *address, size_t size, int wait);
+
 void
 uio_free (struct uio * uio, void * address, size_t size);
 

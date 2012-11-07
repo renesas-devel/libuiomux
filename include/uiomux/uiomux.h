@@ -387,6 +387,41 @@ uiomux_malloc (UIOMux * uiomux, uiomux_resource_t resource,
                size_t size, int align);
 
 /**
+ * Lock a region of iomem in a UIO managed resource
+ * \param uiomux A UIOMux handle
+ * \param resource A single named resource
+ * \param address Address of memory region
+ * \param size Size of memory region
+ * \retval 0 Success
+ */
+int
+uiomux_mlock (UIOMux * uiomux, uiomux_resource_t resource,
+              void *address, size_t size);
+
+/**
+ * Try to lock a region of iomem in a UIO managed resource
+ * \param uiomux A UIOMux handle
+ * \param resource A single named resource
+ * \param address Address of memory region
+ * \param size Size of memory region
+ * \retval 0 Success
+ */
+int
+uiomux_mtrylock (UIOMux * uiomux, uiomux_resource_t resource,
+		 void *address, size_t size);
+
+/**
+ * Unlock a region of iomem in a UIO managed resource.
+ * \param uiomux A UIOMux handle
+ * \param resource A single named resource
+ * \param address The address to unlock
+ * \param size The size to unlock
+ */
+void
+uiomux_munlock (UIOMux * uiomux, uiomux_resource_t resource,
+                void * address, size_t size);
+
+/**
  * Allocate shared iomem from a UIO managed resource. There can only be one shared
  * memory region for a UIO device.
  * \param uiomux A UIOMux handle

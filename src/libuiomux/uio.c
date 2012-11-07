@@ -396,6 +396,24 @@ static int uio_mem_lock(int fd, int offset, int count, int shared)
 	return ret;
 }
 
+static int uio_mem_lock_wait(int fd, int offset, int count, int shared)
+{
+	struct flock lck;
+	int ret;
+
+	if (shared)
+		lck.l_type = F_RDLCK;
+	else
+		lck.l_type = F_WRLCK;
+	lck.l_whence = SEEK_SET;
+	lck.l_start = offset;
+	lck.l_len = count;
+
+	ret = fcntl(fd, F_SETLKW, &lck);
+
+	return ret;
+}
+
 static int uio_mem_unlock(int fd, int offset, int count)
 {
 	struct flock lck;
@@ -465,6 +483,8 @@ static int uio_mem_alloc(int fd, int res, int offset, int count, int shared)
 	return 0;
 }
 
+static pthread_cond_t mc_cond = PTHREAD_COND_INITIALIZER;
+
 static int uio_mem_free(int fd, int res, int offset, int count)
 {
 	struct flock lck;
@@ -477,6 +497,7 @@ static int uio_mem_free(int fd, int res, int offset, int count)
 		while (count-- > 0)
 			mc_map[offset++][res] = PAGE_FREE;
 		pthread_mutex_unlock(&mc_lock);
+		pthread_cond_broadcast(&mc_cond);
 	}
 
 	return ret;
@@ -509,6 +530,53 @@ void *uio_malloc(struct uio *uio, size_t size, int align, int shared)
 		((unsigned long)uio->mem.iomem + (base * pagesize));
 
 	return mem_base;
+}
+
+int uio_mlock(struct uio *uio, void *address, size_t size, int wait)
+{
+	int i, n, res;
+	int pagesize, count, base;
+	int ret = 0;
+
+	if (uio == NULL || uio->mem.iomem == NULL) {
+		fprintf(stderr,
+			"%s: Allocation failed: uio->mem.iomem NULL\n",
+			__func__);
+		return -ENODEV;
+	}
+
+	pagesize = sysconf(_SC_PAGESIZE);
+	count = (size + pagesize - 1) / pagesize;
+	base = (int)(((unsigned long)address -
+		      (unsigned long)uio->mem.iomem) / pagesize);
+
+	res = uio->device_index;
+
+	pthread_mutex_lock(&mc_lock);
+	/* wait for available */
+	if (wait)
+		uio_mem_lock_wait(uio->dev.fd, base, count, 0);
+	else
+		uio_mem_lock(uio->dev.fd, base, count, 0);
+retry:
+	for (i=count, n=base; i>0; i--,n++) {
+		if (mc_map[n][res] == PAGE_ALLOCATED) {
+			ret = wait ? pthread_cond_wait(&mc_cond, &mc_lock) : -EBUSY;
+			if (ret != 0)
+				break;
+			goto retry;
+		}
+	}
+
+	/* lock */
+	if (ret == 0) {
+		for (i=count, n=base; i>0; i--,n++)
+			mc_map[n][res] = PAGE_ALLOCATED;
+	}
+
+	pthread_mutex_unlock(&mc_lock);
+
+	return ret;
 }
 
 void uio_free(struct uio *uio, void *address, size_t size)

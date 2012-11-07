@@ -452,6 +452,61 @@ void *uiomux_malloc_shared(struct uiomux *uiomux, uiomux_resource_t blockmask,
 	return ret;
 }
 
+int
+uiomux_mlock(struct uiomux *uiomux, uiomux_resource_t blockmask,
+	     void *address, size_t size)
+{
+	struct uio *uio;
+	int i, ret = -ENODEV;
+
+	/* Invalid if multiple bits are set, or block not found */
+	if ((i = uiomux_get_block_index(uiomux, blockmask)) == -1)
+		return ret;
+
+	uio = uiomux->uios[i];
+
+	if (uio) {
+#ifdef DEBUG
+		fprintf(stderr, "%s: Locking memory for block %d\n",
+			__func__, i);
+#endif
+		ret = uio_mlock(uio, address, size, 1);
+	}
+
+	return ret;
+}
+
+int
+uiomux_mtrylock(struct uiomux *uiomux, uiomux_resource_t blockmask,
+		void *address, size_t size)
+{
+	struct uio *uio;
+	int i, ret = -ENODEV;
+
+	/* Invalid if multiple bits are set, or block not found */
+	if ((i = uiomux_get_block_index(uiomux, blockmask)) == -1)
+		return ret;
+
+	uio = uiomux->uios[i];
+
+	if (uio) {
+#ifdef DEBUG
+		fprintf(stderr, "%s: Try locking memory for block %d\n",
+			__func__, i);
+#endif
+		ret = uio_mlock(uio, address, size, 0);
+	}
+
+	return ret;
+}
+
+void
+uiomux_munlock(struct uiomux *uiomux, uiomux_resource_t blockmask,
+	       void *address, size_t size)
+{
+	uiomux_free(uiomux, blockmask, address, size);
+}
+
 void
 uiomux_free(struct uiomux *uiomux, uiomux_resource_t blockmask,
 	    void *address, size_t size)
