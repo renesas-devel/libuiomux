@@ -29,7 +29,6 @@
 #include <string.h>
 #include <pthread.h>
 #include <unistd.h>
-#include <dirent.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -60,9 +59,8 @@ static int get_uio_device_list(struct uio_device **list, int *count)
 {
 	static int uio_device_count = -1;
 	static struct uio_device uio_device[UIO_DEVICE_MAX];
-	struct dirent **namelist;
 	static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-	int n, i, len;
+	int n;
 	char path[MAXPATHLEN];
 
 	pthread_mutex_lock(&lock);
@@ -75,27 +73,14 @@ static int get_uio_device_list(struct uio_device **list, int *count)
 		return 0;
 	}
 
-	n = scandir("/sys/class/uio", &namelist, 0, alphasort);
-	if (n < 3) {
-		/* no UIO  - we must have at least 3 entries. */
-		goto unlock;
-	}
-
 	uio_device_count = 0;
-	for (i = 0; i < n; i++) {
-		if (strncmp(namelist[i]->d_name, "uio", 3) != 0)
-			continue;
-
-		snprintf(path, MAXPATHLEN, "/sys/class/uio/%s/name",
-			 namelist[i]->d_name);
-
-		if (strlen(path) - 3 > UIO_DEVICE_PATH_MAX)
-			goto err;
-
+	for (n = 0; n < UIO_DEVICE_MAX; n++) {
+		snprintf(path, MAXPATHLEN, "/sys/class/uio/uio%d/name", n);
 		if (fgets_with_openclose(path,
 					 uio_device[uio_device_count].name,
 					 UIO_DEVICE_NAME_MAX) < 0)
-			goto err;
+			break;	/* There can be no gaps
+				   in the uio device numbering. */
 
 		path[strlen(path) - 4] = '\0';
 		strcpy(uio_device[uio_device_count].path, path);
