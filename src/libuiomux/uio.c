@@ -422,7 +422,6 @@ static int uio_mem_find(int fd, int res, int max, int count, int shared)
 {
 	int s, l, c;
 
-	pthread_mutex_lock(&mc_lock);
 	for (s = 0; s < max; s++) {
 		/* Find memory region not used by this process */
 		for (l = s, c = count; (l < max) && (c > 0); l++, c--) {
@@ -445,7 +444,6 @@ static int uio_mem_find(int fd, int res, int max, int count, int shared)
 		s = l;	/* skip */
 	}
 
-	pthread_mutex_unlock(&mc_lock);
 	return -1;
 
 found:
@@ -453,17 +451,15 @@ found:
 	fprintf(stderr, "%s: Found %d available pages at index %d\n",
 		__func__, count, s);
 #endif
-	pthread_mutex_unlock(&mc_lock);
 	return s;
 }
 
 static int uio_mem_alloc(int fd, int res, int offset, int count, int shared)
 {
 	unsigned char flag = (shared ? PAGE_SHARED : PAGE_ALLOCATED);
-	pthread_mutex_lock(&mc_lock);
+
 	while (count-- > 0)
 		mc_map[offset++][res] = flag;
-	pthread_mutex_unlock(&mc_lock);
 
 	return 0;
 }
@@ -506,10 +502,14 @@ void *uio_malloc(struct uio *uio, size_t size, int align, int shared)
 	pages_max = (uio->mem.size + pagesize - 1) / pagesize;
 	pages_req = (size + pagesize - 1) / pagesize;
 
+	pthread_mutex_lock(&mc_lock);
 	if ((base = uio_mem_find(uio->dev.fd, uio->device_index,
-				 pages_max, pages_req, shared)) == -1)
+				 pages_max, pages_req, shared)) == -1) {
+		pthread_mutex_unlock(&mc_lock);
 		return NULL;
+	}
 	uio_mem_alloc(uio->dev.fd, uio->device_index, base, pages_req, shared);
+	pthread_mutex_unlock(&mc_lock);
 
 	mem_base = (void *)
 		((unsigned long)uio->mem.iomem + (base * pagesize));
