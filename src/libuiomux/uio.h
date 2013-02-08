@@ -21,8 +21,10 @@
 #define __UIOMUX_UIO_H__
 
 #define UIO_DEVICE_MAX		16
+#ifndef UIO_BUFFER_MAX
 #define UIO_BUFFER_MAX		(64 * 1024 * 1024) /* 64MB, depends on
 						      get_free_pages() */
+#endif
 
 /* max length of UIO names found in /sys/class/uio/uioNN/name */
 #define UIO_DEVICE_NAME_MAX    32

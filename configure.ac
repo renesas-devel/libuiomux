@@ -141,6 +141,18 @@ if test "x$PTHREAD_LIBS" = xerror; then
 fi
 AC_SUBST(PTHREAD_LIBS)
 
+dnl
+dnl Maximum amount of memory exported by each uio device
+dnl
+AC_ARG_WITH([max-map-mem],
+[AS_HELP_STRING([--with-max-map-mem=MB],
+[set maximum amount of memory exported by each uio device [default=64]])
+],
+[MAXMEM_MB=$withval],
+[MAXMEM_MB=64]
+)
+AC_DEFINE_UNQUOTED(UIO_BUFFER_MAX, [($MAXMEM_MB << 20)], [Maximum amount of buffer memory])
+
 dnl Overall configuration success flag
 uiomux_config_ok=yes
 
