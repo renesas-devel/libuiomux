@@ -284,6 +284,7 @@ struct uio *uio_open(const char *name)
 			UIO_DEVICE_MAX * sizeof(unsigned char);
 		mc_map = (unsigned char (*)[UIO_DEVICE_MAX])malloc(n_pages);
 		if (mc_map == NULL) {
+			pthread_mutex_unlock(&mc_lock);
 			uio_close(uio);
 			return NULL;
 		}
