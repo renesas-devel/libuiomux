@@ -196,9 +196,6 @@ static int setup_uio_map(struct uio_device *udp, int nr,
 		return -1;
 
 	ump->size = strtoul(buf, NULL, 0);
-	if (ump->size > UIO_BUFFER_MAX)
-		return -1;
-
 	ump->iomem = mmap(0, ump->size,
 			  PROT_READ | PROT_WRITE, MAP_SHARED,
 			  udp->fd, nr * sysconf(_SC_PAGESIZE));
@@ -217,7 +214,7 @@ static int setup_uio_map(struct uio_device *udp, int nr,
    lock is only valid between processes, not within a process.
  */
 static pthread_mutex_t mc_lock = PTHREAD_MUTEX_INITIALIZER;
-static unsigned char (*mc_map)[UIO_DEVICE_MAX];
+static unsigned char *mc_map[UIO_DEVICE_MAX];
 
 #define PAGE_FREE      0
 #define PAGE_ALLOCATED 1
@@ -250,6 +247,7 @@ struct uio *uio_open(const char *name)
 {
 	struct uio *uio;
 	int ret;
+	int res;
 
 	uio = (struct uio *) calloc(1, sizeof(struct uio));
 	if (uio == NULL)
@@ -277,20 +275,21 @@ struct uio *uio_open(const char *name)
 	pipe(uio->exit_sleep_pipe);
 
 	/* initialize uio memory usage map once in each process */
+	res = uio->device_index;
 	pthread_mutex_lock(&mc_lock);
-	if (mc_map == NULL) {
+	if (mc_map[res] == NULL && uio->mem.iomem) {
 		const long pagesize = sysconf(_SC_PAGESIZE);
 		size_t n_pages;
 
-		n_pages = (UIO_BUFFER_MAX / pagesize) *
-			UIO_DEVICE_MAX * sizeof(unsigned char);
-		mc_map = (unsigned char (*)[UIO_DEVICE_MAX])malloc(n_pages);
-		if (mc_map == NULL) {
+		n_pages = ((uio->mem.size + pagesize - 1) / pagesize) *
+			sizeof(unsigned char);
+		mc_map[res] = (unsigned char *)malloc(n_pages);
+		if (mc_map[res] == NULL) {
 			pthread_mutex_unlock(&mc_lock);
 			uio_close(uio);
 			return NULL;
 		}
-		memset((void *)mc_map, PAGE_FREE, n_pages);
+		memset((void *)mc_map[res], PAGE_FREE, n_pages);
 	}
 	pthread_mutex_unlock(&mc_lock);
 
@@ -425,14 +424,16 @@ static int uio_mem_find(int fd, int res, int max, int count, int shared)
 {
 	int s, l, c;
 
+	if (mc_map[res] == NULL)
+		return -1;
 	for (s = 0; s < max; s++) {
 		/* Find memory region not used by this process */
 		for (l = s, c = count; (l < max) && (c > 0); l++, c--) {
 			if (shared) {
-				if (mc_map[l][res] == PAGE_ALLOCATED) break;
+				if (mc_map[res][l] == PAGE_ALLOCATED) break;
 			}
 			else {
-				if (mc_map[l][res] != PAGE_FREE) break;
+				if (mc_map[res][l] != PAGE_FREE) break;
 			}
 		}
 
@@ -462,7 +463,7 @@ static int uio_mem_alloc(int fd, int res, int offset, int count, int shared)
 	unsigned char flag = (shared ? PAGE_SHARED : PAGE_ALLOCATED);
 
 	while (count-- > 0)
-		mc_map[offset++][res] = flag;
+		mc_map[res][offset++] = flag;
 
 	return 0;
 }
@@ -479,7 +480,7 @@ static int uio_mem_free(int fd, int res, int offset, int count)
 	if (ret == 0) {
 		pthread_mutex_lock(&mc_lock);
 		while (count-- > 0)
-			mc_map[offset++][res] = PAGE_FREE;
+			mc_map[res][offset++] = PAGE_FREE;
 		pthread_mutex_unlock(&mc_lock);
 		pthread_cond_broadcast(&mc_cond);
 	}
@@ -541,6 +542,15 @@ int uio_mlock(struct uio *uio, void *address, size_t size, int wait)
 	res = uio->device_index;
 
 	pthread_mutex_lock(&mc_lock);
+
+	if (mc_map[res] == NULL) {
+		pthread_mutex_unlock(&mc_lock);
+		fprintf(stderr,
+			"%s: Allocation failed: mc_map[res] NULL\n",
+			__func__);
+		return -ENODEV;
+	}
+
 	/* wait for available */
 	if (wait)
 		uio_mem_lock_wait(uio->dev.fd, base, count, 0);
@@ -548,7 +558,7 @@ int uio_mlock(struct uio *uio, void *address, size_t size, int wait)
 		uio_mem_lock(uio->dev.fd, base, count, 0);
 retry:
 	for (i=count, n=base; i>0; i--,n++) {
-		if (mc_map[n][res] == PAGE_ALLOCATED) {
+		if (mc_map[res][n] == PAGE_ALLOCATED) {
 			ret = wait ? pthread_cond_wait(&mc_cond, &mc_lock) : -EBUSY;
 			if (ret != 0)
 				break;
@@ -559,7 +569,7 @@ retry:
 	/* lock */
 	if (ret == 0) {
 		for (i=count, n=base; i>0; i--,n++)
-			mc_map[n][res] = PAGE_ALLOCATED;
+			mc_map[res][n] = PAGE_ALLOCATED;
 	}
 
 	pthread_mutex_unlock(&mc_lock);

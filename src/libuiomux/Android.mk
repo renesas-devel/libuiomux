@@ -7,10 +7,6 @@ LOCAL_C_INCLUDES := \
 #LOCAL_CFLAGS := -DDEBUG
 LOCAL_CFLAGS := -DVERSION=\"1.0.0\"
 
-ifneq ($(UIO_MAX_MAP_MEM),)
-        LOCAL_CFLAGS += -DUIO_BUFFER_MAX="($(UIO_MAX_MAP_MEM) << 20)"
-endif
-
 LOCAL_SRC_FILES := \
 	uio.c \
 	uiomux.c
