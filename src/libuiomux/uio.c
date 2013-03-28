@@ -203,8 +203,10 @@ static int setup_uio_map(struct uio_device *udp, int nr,
 			  PROT_READ | PROT_WRITE, MAP_SHARED,
 			  udp->fd, nr * sysconf(_SC_PAGESIZE));
 
-	if (ump->iomem == MAP_FAILED)
+	if (ump->iomem == MAP_FAILED) {
+		ump->iomem = NULL;
 		return -1;
+	}
 
 	return 0;
 }
