@@ -1,0 +1,40 @@
+UIOMux Release 1.7.0
+====================
+
+UIOMux is a conflict manager for system resources, including UIO devices.
+
+The source archive, and more information about the library are available from:
+
+	http://oss.renesas.com/modules/document/?libuiomux
+
+This release of libuiomux targets Renesas SH-Mobile processors.
+
+New in this release
+-------------------
+
+This release adds new three functions to specify a region of iomem to
+use or to share exclusively between multiple tasks, removes the
+statically-defined 'maximum memory size' to be exported via uio,
+and fixes a memory leak and some lock issues.
+
+Changes
+-------
+
+This release includes the following changes since version 1.6.2:
+
+Hideki EIRAKU (2):
+      Set ump->iomem to NULL when mmap fails
+      Determine UIO buffer size at runtime
+
+Katsuya Matsubara (5):
+      uiomux_mlock/mtrylock/munlock: Add ability to specify a region of iomem to use
+      Resolve memory leak in uio device enumeration code
+      Rearrange mutex locks in uio_mem_find() and uio_mem_alloc()
+      Allow for changing the default maximum size of buffer memory from config
+      Fix missing unlock on error in uio_open()
+
+ include/uiomux/uiomux.h |   35 +++++++++++
+ src/libuiomux/uio.c     |  148 ++++++++++++++++++++++++++++++++++-------------
+ src/libuiomux/uio.h     |    5 +-
+ src/libuiomux/uiomux.c  |   55 +++++++++++++++++
+ 4 files changed, 200 insertions(+), 43 deletions(-)
