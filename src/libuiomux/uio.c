@@ -215,6 +215,7 @@ static int setup_uio_map(struct uio_device *udp, int nr,
  */
 static pthread_mutex_t mc_lock = PTHREAD_MUTEX_INITIALIZER;
 static unsigned char *mc_map[UIO_DEVICE_MAX];
+static int mc_refcount[UIO_DEVICE_MAX];
 
 #define PAGE_FREE      0
 #define PAGE_ALLOCATED 1
@@ -222,6 +223,8 @@ static unsigned char *mc_map[UIO_DEVICE_MAX];
 
 int uio_close(struct uio *uio)
 {
+	int res;
+
 	if (uio == NULL)
 		return -1;
 
@@ -238,6 +241,16 @@ int uio_close(struct uio *uio)
 		close(uio->exit_sleep_pipe[0]);
 		close(uio->exit_sleep_pipe[1]);
 	}
+
+	res = uio->device_index;
+	pthread_mutex_lock(&mc_lock);
+	mc_refcount[res]--;
+	if ((mc_refcount[res] == 0) && mc_map[res]) {
+		free(mc_map[res]);
+		mc_map[res] = NULL;
+	}
+	pthread_mutex_unlock(&mc_lock);
+
 	free(uio);
 
 	return 0;
@@ -291,6 +304,7 @@ struct uio *uio_open(const char *name)
 		}
 		memset((void *)mc_map[res], PAGE_FREE, n_pages);
 	}
+	mc_refcount[res]++;
 	pthread_mutex_unlock(&mc_lock);
 
 	return uio;
