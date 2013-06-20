@@ -434,13 +434,14 @@ static int uio_mem_unlock(int fd, int offset, int count)
  * offsets. Obviously this will be quite slow if another process has already
  * allocated memory.
  */
-static int uio_mem_find(int fd, int res, int max, int count, int shared)
+static int uio_mem_find(int fd, int res, int max, int count, int align, int shared)
 {
 	int s, l, c;
 
 	if (mc_map[res] == NULL)
 		return -1;
-	for (s = 0; s < max; s++) {
+	s = 0;
+	while (s < max) {
 		/* Find memory region not used by this process */
 		for (l = s, c = count; (l < max) && (c > 0); l++, c--) {
 			if (shared) {
@@ -459,7 +460,9 @@ static int uio_mem_find(int fd, int res, int max, int count, int shared)
 			if (!ret)
 				goto found;
 		}
-		s = l;	/* skip */
+		s = l + 1;	/* skip */
+		if (align > 1)
+			s = ((s / align) + 1) * align;
 	}
 
 	return -1;
@@ -505,7 +508,7 @@ static int uio_mem_free(int fd, int res, int offset, int count)
 void *uio_malloc(struct uio *uio, size_t size, int align, int shared)
 {
 	unsigned char * mem_base;
-	int pagesize, pages_req, pages_max;
+	int pagesize, pages_req, pages_max, pages_align;
 	int base;
 
 	if (uio->mem.iomem == NULL) {
@@ -519,10 +522,12 @@ void *uio_malloc(struct uio *uio, size_t size, int align, int shared)
 
 	pages_max = (uio->mem.size + pagesize - 1) / pagesize;
 	pages_req = (size + pagesize - 1) / pagesize;
+	pages_align = (align + pagesize - 1) / pagesize;
 
 	pthread_mutex_lock(&mc_lock);
 	if ((base = uio_mem_find(uio->dev.fd, uio->device_index,
-				 pages_max, pages_req, shared)) == -1) {
+				 pages_max, pages_req,
+				 pages_align, shared)) == -1) {
 		pthread_mutex_unlock(&mc_lock);
 		return NULL;
 	}
