@@ -87,7 +87,8 @@ find_mem_block(struct uiomux_addr_block **start, void *virt)
 	struct uiomux_addr_block *curr = *start;
 
 	while (curr != NULL) {
-		if ((virt >= curr->virt) && (virt < curr->virt+curr->size))
+		if ((virt >= curr->virt) &&
+		    (virt <= curr->virt + curr->size - 1))
 			return curr;
 		curr = curr->next;
 	}
