@@ -1,0 +1,33 @@
+UIOMux Release 1.7.1
+====================
+
+UIOMux is a conflict manager for system resources, including UIO devices.
+
+The source archive, and more information about the library are available from:
+
+	http://oss.renesas.com/modules/document/?libuiomux
+
+This release of libuiomux targets Renesas processors.
+
+New in this release
+-------------------
+
+This release fixes a bug, implements the 'align' treatment in
+uiomux_malloc() and adds a small optimization for memory footprint
+at runtime.
+
+Changes
+-------
+
+This release includes the following changes since version 1.7.0:
+
+Damian Hobson-Garcia (1):
+      Guard against address overflow in when looking up memory blocks
+
+Katsuya Matsubara (2):
+      Release region of the memory usage map when nobody uses it anymore
+      Treat the 'align' argument in uiomux_malloc()
+
+ src/libuiomux/uio.c    | 15 +++++----------
+ src/libuiomux/uiomux.c |  3 +--
+ 2 files changed, 6 insertions(+), 12 deletions(-)
